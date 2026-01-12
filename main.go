@@ -1,14 +1,21 @@
 package main
 
 import (
-    "fmt"
-    "groupie-tracker/ui" // ton module pour l’UI
+	"groupie-tracker/services"
+	"groupie-tracker/ui"
+	"log"
+
+	"fyne.io/fyne/v2/app"
 )
 
 func main() {
-    fmt.Println("Hello Groupie Tracker!")
+	a := app.New()
+	w := a.NewWindow("Groupie Tracker")
 
-    window := ui.SetupWindow()
-    window.ShowArtistList(nil)
-    window.Run()
+	artists, err := services.GetArtists()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ui.ShowArtislList(w, artists)
+	w.ShowAndRun()
 }
