@@ -10,8 +10,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func RenderArtistDetail(artist interface{}, w fyne.Window) *fyne.Container {
-	backBtn := widget.NewButton("← Retour", func() {})
+func RenderArtistDetail(artist interface{}, w *AppWindow) *fyne.Container {
+	backBtn := widget.NewButton("← Retour", func() {
+		w.ShowArtistList(nil)
+	})
 
 	title := widget.NewLabel("Détails de l'artiste")
 	title.TextStyle = fyne.TextStyle{Bold: true}
@@ -24,9 +26,15 @@ func RenderArtistDetail(artist interface{}, w fyne.Window) *fyne.Container {
 	concerts := makeConcertSection()
 
 	top := container.NewHBox(img, info)
-	scroll := container.NewVScroll(container.NewVBox(top, widget.NewSeparator(), concerts))
+	scroll := container.NewVScroll(
+		container.NewVBox(top, widget.NewSeparator(), concerts),
+	)
 
-	return container.NewBorder(container.NewVBox(backBtn, title, widget.NewSeparator()), nil, nil, nil, scroll)
+	return container.NewBorder(
+		container.NewVBox(backBtn, title, widget.NewSeparator()),
+		nil, nil, nil,
+		scroll,
+	)
 }
 
 func makeInfoSection() *fyne.Container {
@@ -41,7 +49,15 @@ func makeInfoSection() *fyne.Container {
 
 	members := widget.NewLabel("Freddie Mercury\nBrian May\nRoger Taylor\nJohn Deacon")
 
-	return container.NewVBox(name, widget.NewSeparator(), creation, album, widget.NewSeparator(), membersTitle, members)
+	return container.NewVBox(
+		name,
+		widget.NewSeparator(),
+		creation,
+		album,
+		widget.NewSeparator(),
+		membersTitle,
+		members,
+	)
 }
 
 func makeConcertSection() *fyne.Container {
@@ -54,7 +70,8 @@ func makeConcertSection() *fyne.Container {
 	dates := []string{"15-01-2024", "20-02-2024", "10-03-2024", "05-04-2024"}
 
 	for i := 0; i < len(locations); i++ {
-		list.Add(makeConcertCard(locations[i], dates[i]))
+		card := makeConcertCard(locations[i], dates[i])
+		list.Add(card)
 	}
 
 	return container.NewVBox(title, widget.NewSeparator(), list)

@@ -1,6 +1,6 @@
 package models
 
 type Location struct {
-	ID        int      `json:"id"`
+	ID        int
 	Locations []string `json:"locations"`
 }

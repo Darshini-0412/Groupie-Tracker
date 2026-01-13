@@ -1,6 +1,6 @@
 package models
 
 type Date struct {
-	ID    int      `json:"id"`
+	ID    int
 	Dates []string `json:"dates"`
 }
