@@ -1,39 +1,26 @@
 package services
 
-import (
-	"groupie-tracker/models"
-	"strconv"
-)
+import "groupie-tracker/models"
 
-func FilterByCreationYear(artists []models.Artist, min, max int) []models.Artist {
+func FilterByCreationDate(artists []models.Artist, min, max int) []models.Artist {
 	var result []models.Artist
-	for _, a := range artists {
-		if a.CreationDate >= min && a.CreationDate <= max {
-			result = append(result, a)
+
+	for _, artist := range artists {
+		if artist.CreationDate >= min && artist.CreationDate <= max {
+			result = append(result, artist)
 		}
 	}
+
 	return result
 }
 
-func FilterByMemberCount(artists []models.Artist, count int) []models.Artist {
-	var result []models.Artist
-	for _, a := range artists {
-		if len(a.Members) == count {
-			result = append(result, a)
-		}
-	}
-	return result
-}
-
-func FilterByFirstAlbumYear(artists []models.Artist, min, max int) []models.Artist {
+func FilterByMemberCount(artists []models.Artist, min, max int) []models.Artist {
 	var result []models.Artist
 
-	for _, a := range artists {
-		yearStr := a.FirstAlbum[:4]
-		year, _ := strconv.Atoi(yearStr)
-
-		if year >= min && year <= max {
-			result = append(result, a)
+	for _, artist := range artists {
+		count := len(artist.Members)
+		if count >= min && count <= max {
+			result = append(result, artist)
 		}
 	}
 

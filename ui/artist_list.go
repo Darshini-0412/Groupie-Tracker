@@ -2,12 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
 )
 
 func RenderArtistList(artists interface{}, w *AppWindow) *fyne.Container {
@@ -45,6 +46,6 @@ func makeArtistCard(index int, w *AppWindow) *fyne.Container {
 	})
 
 	card := container.NewVBox(img, name, info, btn)
-	
+
 	return container.NewPadded(card)
 }
