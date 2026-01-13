@@ -16,6 +16,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ui.ShowArtislList(w, artists)
+	ui.ShowArtistList(w, artists)
 	w.ShowAndRun()
 }
