@@ -2,22 +2,37 @@ package services
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
+	"groupie-tracker/models"
+	"io/ioutil"
 	"net/http"
 )
 
-func Fetch[T any](url string) (T, error) {
-	var result T
+const APIBaseURL = "https://groupietrackers.herokuapp.com/api"
+
+func FetchArtists() ([]models.Artist, error) {
+	url := APIBaseURL + "/artists"
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return result, err
+		return nil, fmt.Errorf("erreur lors de la requête API: %v", err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return result, err
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("erreur HTTP: %d", resp.StatusCode)
 	}
-	err = json.Unmarshal(body, &result)
-	return result, err
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors de la lecture de la réponse: %v", err)
+	}
+
+	var artists []models.Artist
+	err = json.Unmarshal(body, &artists)
+	if err != nil {
+		return nil, fmt.Errorf("erreur lors du parsing JSON: %v", err)
+	}
+
+	return artists, nil
 }

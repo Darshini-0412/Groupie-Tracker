@@ -1,11 +1,18 @@
 package main
 
 import (
+	"groupie-tracker/services"
 	"groupie-tracker/ui"
+	"log"
 )
 
 func main() {
-	app := ui.NewApp()
-	app.ShowArtistList(nil)
+	artists, err := services.FetchArtists()
+	if err != nil {
+		log.Fatal("Erreur lors du chargement des artistes:", err)
+	}
+
+	app := ui.NewApp(artists)
+	app.ShowArtistList()
 	app.Run()
 }

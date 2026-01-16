@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"image/color"
+	"groupie-tracker/models"
+	"io"
+	"net/http"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -10,78 +12,109 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func RenderArtistDetail(artist interface{}, w *AppWindow) *fyne.Container {
-	backBtn := widget.NewButton("← Retour", func() {
-		w.ShowArtistList(nil)
-	})
+func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
+	var artist models.Artist
+	found := false
 
-	title := widget.NewLabel("Détails de l'artiste")
-	title.TextStyle = fyne.TextStyle{Bold: true}
-	title.Alignment = fyne.TextAlignCenter
-
-	img := canvas.NewRectangle(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	img.SetMinSize(fyne.NewSize(350, 350))
-
-	info := makeInfoSection()
-	concerts := makeConcertSection()
-
-	top := container.NewHBox(img, info)
-	scroll := container.NewVScroll(
-		container.NewVBox(top, widget.NewSeparator(), concerts),
-	)
-
-	return container.NewBorder(
-		container.NewVBox(backBtn, title, widget.NewSeparator()),
-		nil, nil, nil,
-		scroll,
-	)
-}
-
-func makeInfoSection() *fyne.Container {
-	name := widget.NewLabel("Queen")
-	name.TextStyle = fyne.TextStyle{Bold: true}
-
-	creation := widget.NewLabel("Création: 1970")
-	album := widget.NewLabel("Premier album: 1973")
-
-	membersTitle := widget.NewLabel("Membres:")
-	membersTitle.TextStyle = fyne.TextStyle{Bold: true}
-
-	members := widget.NewLabel("Freddie Mercury\nBrian May\nRoger Taylor\nJohn Deacon")
-
-	return container.NewVBox(
-		name,
-		widget.NewSeparator(),
-		creation,
-		album,
-		widget.NewSeparator(),
-		membersTitle,
-		members,
-	)
-}
-
-func makeConcertSection() *fyne.Container {
-	title := widget.NewLabel("Dates et lieux des concerts")
-	title.TextStyle = fyne.TextStyle{Bold: true}
-
-	list := container.NewVBox()
-
-	locations := []string{"Paris, France", "London, UK", "New York, USA", "Tokyo, Japan"}
-	dates := []string{"15-01-2024", "20-02-2024", "10-03-2024", "05-04-2024"}
-
-	for i := 0; i < len(locations); i++ {
-		card := makeConcertCard(locations[i], dates[i])
-		list.Add(card)
+	for _, a := range w.AllArtists {
+		if a.Name == artistName {
+			artist = a
+			found = true
+			break
+		}
 	}
 
-	return container.NewVBox(title, widget.NewSeparator(), list)
+	if !found {
+		return container.NewVBox(widget.NewLabel("Artiste non trouvé"))
+	}
+
+	backBtn := widget.NewButton("← Retour à la liste", func() {
+		w.ShowArtistList()
+	})
+
+	img := loadImageFromURL(artist.Image)
+	img.SetMinSize(fyne.NewSize(300, 300))
+
+	title := canvas.NewText(artist.Name, textGray)
+	title.TextSize = 28
+	title.TextStyle = fyne.TextStyle{Bold: true}
+
+	header := container.NewVBox(
+		container.NewCenter(img),
+		container.NewCenter(title),
+	)
+
+	infoCard := makeDetailInfoCard(artist)
+	membersCard := makeDetailMembersCard(artist)
+
+	content := container.NewVBox(
+		backBtn,
+		header,
+		infoCard,
+		membersCard,
+	)
+
+	return content
 }
 
-func makeConcertCard(location string, date string) *fyne.Container {
-	loc := widget.NewLabel(fmt.Sprintf("📍 %s", location))
-	loc.TextStyle = fyne.TextStyle{Bold: true}
+func makeDetailInfoCard(artist models.Artist) *fyne.Container {
+	bg := canvas.NewRectangle(bgCard)
+	bg.SetMinSize(fyne.NewSize(0, 150))
 
-	dt := widget.NewLabel(fmt.Sprintf("📅 %s", date))
+	titleLabel := canvas.NewText("📋 Informations", textGray)
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	titleLabel.TextSize = 20
 
-	return container.NewVBox(loc, dt, widget.NewSeparator())
+	yearLabel := canvas.NewText(fmt.Sprintf("📅 Année de création: %d", artist.CreationDate), textGray)
+	albumLabel := canvas.NewText(fmt.Sprintf("💿 Premier album: %s", artist.FirstAlbum), textGray)
+	membersCountLabel := canvas.NewText(fmt.Sprintf("👥 Nombre de membres: %d", len(artist.Members)), textGray)
+
+	info := container.NewVBox(
+		titleLabel,
+		widget.NewSeparator(),
+		yearLabel,
+		albumLabel,
+		membersCountLabel,
+	)
+
+	return container.NewStack(bg, container.NewPadded(info))
+}
+
+func makeDetailMembersCard(artist models.Artist) *fyne.Container {
+	bg := canvas.NewRectangle(bgCard)
+
+	titleLabel := canvas.NewText("👥 Membres du groupe", textGray)
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	titleLabel.TextSize = 20
+
+	membersList := container.NewVBox()
+	for _, member := range artist.Members {
+		memberText := canvas.NewText("• "+member, textGray)
+		membersList.Add(memberText)
+	}
+
+	content := container.NewVBox(
+		titleLabel,
+		widget.NewSeparator(),
+		membersList,
+	)
+
+	return container.NewStack(bg, container.NewPadded(content))
+}
+
+func loadImageFromURL(url string) *canvas.Image {
+	resp, err := http.Get(url)
+	if err != nil {
+		return canvas.NewImageFromImage(nil)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return canvas.NewImageFromImage(nil)
+	}
+
+	img := &canvas.Image{Resource: fyne.NewStaticResource(url, data)}
+	img.FillMode = canvas.ImageFillContain
+	return img
 }

@@ -39,7 +39,7 @@ func RenderFiltersPanel(artists []models.Artist, w *AppWindow) *fyne.Container {
 			filtered = services.FilterByMemberCount(filtered, min, max)
 		}
 
-		w.ShowArtistList(filtered)
+		w.ShowFilteredArtistList(filtered)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {
@@ -47,7 +47,7 @@ func RenderFiltersPanel(artists []models.Artist, w *AppWindow) *fyne.Container {
 		maxYear.SetText("")
 		minMembers.SetText("")
 		maxMembers.SetText("")
-		w.ShowArtistList(artists)
+		w.ShowArtistList()
 	})
 
 	return container.NewVBox(
