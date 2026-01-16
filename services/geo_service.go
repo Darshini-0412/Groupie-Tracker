@@ -2,53 +2,88 @@ package services
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
+	"groupie-tracker/localisation"
+	"groupie-tracker/models"
 	"net/http"
-	"net/url"
-	"strconv"
-	"time"
+	"strings"
 )
 
 type Coordinates struct {
-	Lat float64
-	Lon float64
+	City    string
+	Country string
+	Lat     float64
+	Lon     float64
 }
 
-func GeocodeAddress(address string) (Coordinates, error) {
-	apiURL := "https://nominatim.openstreetmap.org/search"
-	params := url.Values{}
-	params.Set("q", address)
-	params.Set("format", "json")
-	params.Set("limit", "1")
+// --- Fonction Fetch générique (corrige ton erreur "undefined: Fetch") ---
+func Fetch[T any](url string) (T, error) {
+	var result T
 
-	req, err := http.NewRequest("GET", apiURL+"?"+params.Encode(), nil)
+	resp, err := http.Get(url)
 	if err != nil {
-		return Coordinates{}, err
-	}
-	req.Header.Set("User-Agent", "groupie-tracker-app")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return Coordinates{}, err
+		return result, err
 	}
 	defer resp.Body.Close()
 
-	var result []struct {
-		Lat string `json:"lat"`
-		Lon string `json:"lon"`
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return result, err
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	return result, nil
+}
+
+// --- Récupère les coordonnées pour chaque lieu d’un artiste ---
+func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
+	var coords []Coordinates
+
+	// Récupérer les lieux de l'artiste depuis l'API
+	location, err := Fetch[models.Location](artist.Locations)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, locStr := range location.Locations {
+		// Format attendu : "Ville, Pays"
+		parts := strings.Split(locStr, ",")
+		if len(parts) != 2 {
+			continue
+		}
+
+		city := strings.TrimSpace(parts[0])
+		country := strings.TrimSpace(parts[1])
+
+		// Exemple : "Paris France"
+		query := fmt.Sprintf("%s %s", city, country)
+
+		result, err := localisation.SearchLocation(query)
+		if err != nil {
+			return nil, err
+		}
+
+		coords = append(coords, Coordinates{
+			City:    result.City,
+			Country: result.Country,
+			Lat:     result.Lat,
+			Lon:     result.Lon,
+		})
+	}
+
+	return coords, nil
+}
+
+// --- Géocode une adresse unique ---
+func GeocodeAddress(address string) (Coordinates, error) {
+	result, err := localisation.SearchLocation(address)
+	if err != nil {
 		return Coordinates{}, err
 	}
 
-	if len(result) == 0 {
-		return Coordinates{}, errors.New("address not found")
-	}
-
-	lat, _ := strconv.ParseFloat(result[0].Lat, 64)
-	lon, _ := strconv.ParseFloat(result[0].Lon, 64)
-
-	return Coordinates{Lat: lat, Lon: lon}, nil
+	return Coordinates{
+		City:    result.City,
+		Country: result.Country,
+		Lat:     result.Lat,
+		Lon:     result.Lon,
+	}, nil
 }
