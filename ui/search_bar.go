@@ -1,20 +1,48 @@
 package ui
 
 import (
-	"groupie-tracker/models"
-	"groupie-tracker/services"
+	"strconv"
+	"strings"
 
-	"fyne.io/fyne/v2/widget"
+	"groupie-tracker/models"
 )
 
-func RenderSearchBar(artists []models.Artist, w *AppWindow) *widget.Entry {
-	search := widget.NewEntry()
-	search.SetPlaceHolder("Rechercher...")
-
-	search.OnChanged = func(query string) {
-		results := services.SearchArtists(artists, query)
-		w.ShowArtistList(results)
+func RechercherArtistes(artistes []models.Artist, recherche string) []models.Artist {
+	if recherche == "" {
+		return artistes
 	}
 
-	return search
+	rechercheLower := strings.ToLower(recherche)
+	var result []models.Artist
+
+	for _, a := range artistes {
+		if strings.Contains(strings.ToLower(a.Name), rechercheLower) {
+			result = append(result, a)
+			continue
+		}
+
+		membreTrouve := false
+		for _, membre := range a.Members {
+			if strings.Contains(strings.ToLower(membre), rechercheLower) {
+				membreTrouve = true
+				break
+			}
+		}
+		if membreTrouve {
+			result = append(result, a)
+			continue
+		}
+
+		if strings.Contains(strconv.Itoa(a.CreationDate), recherche) {
+			result = append(result, a)
+			continue
+		}
+
+		if strings.Contains(strings.ToLower(a.FirstAlbum), rechercheLower) {
+			result = append(result, a)
+			continue
+		}
+	}
+
+	return result
 }

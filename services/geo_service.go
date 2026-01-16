@@ -1,54 +1,68 @@
 package services
 
 import (
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/url"
-	"strconv"
-	"time"
+	"fmt"
+	"groupie-tracker/localisation"
+	"groupie-tracker/models"
+	"strings"
 )
 
 type Coordinates struct {
-	Lat float64
-	Lon float64
+	City    string
+	Country string
+	Lat     float64
+	Lon     float64
 }
 
+// Récupère les coordonnées pour chaque lieu d’un artiste
+func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
+	var coords []Coordinates
+
+	// Récupérer les lieux de l'artiste depuis l'API
+	location, err := Fetch[models.Location](artist.Locations)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, locStr := range location.Locations {
+		// Analyser la chaîne "Ville,Pays"
+		parts := strings.Split(locStr, ",")
+		if len(parts) != 2 {
+			continue // Ignorer les formats invalides
+		}
+		city := strings.TrimSpace(parts[0])
+		country := strings.TrimSpace(parts[1])
+
+		// Exemple : "Paris France"
+		query := fmt.Sprintf("%s %s", city, country)
+
+		result, err := localisation.SearchLocation(query)
+		if err != nil {
+			return nil, err
+		}
+
+		coords = append(coords, Coordinates{
+			City:    result.City,
+			Country: result.Country,
+			Lat:     result.Lat,
+			Lon:     result.Lon,
+		})
+	}
+
+	return coords, nil
+}
+
+// Géocode une adresse unique
 func GeocodeAddress(address string) (Coordinates, error) {
-	apiURL := "https://nominatim.openstreetmap.org/search"
-	params := url.Values{}
-	params.Set("q", address)
-	params.Set("format", "json")
-	params.Set("limit", "1")
-
-	req, err := http.NewRequest("GET", apiURL+"?"+params.Encode(), nil)
+	result, err := localisation.SearchLocation(address)
 	if err != nil {
 		return Coordinates{}, err
 	}
-	req.Header.Set("User-Agent", "groupie-tracker-app")
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return Coordinates{}, err
-	}
-	defer resp.Body.Close()
-
-	var result []struct {
-		Lat string `json:"lat"`
-		Lon string `json:"lon"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return Coordinates{}, err
-	}
-
-	if len(result) == 0 {
-		return Coordinates{}, errors.New("address not found")
-	}
-
-	lat, _ := strconv.ParseFloat(result[0].Lat, 64)
-	lon, _ := strconv.ParseFloat(result[0].Lon, 64)
-
-	return Coordinates{Lat: lat, Lon: lon}, nil
+	return Coordinates{
+		City:    result.City,
+		Country: result.Country,
+		Lat:     result.Lat,
+		Lon:     result.Lon,
+	}, nil
 }
