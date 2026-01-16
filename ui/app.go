@@ -2,6 +2,7 @@ package ui
 
 import (
 	"groupie-tracker/models"
+	"groupie-tracker/services"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -9,9 +10,10 @@ import (
 )
 
 type AppWindow struct {
-	App        fyne.App
-	Window     fyne.Window
-	AllArtists []models.Artist
+	App             fyne.App
+	Window          fyne.Window
+	AllArtists      []models.Artist
+	EnrichedArtists []services.ArtistEnriched
 }
 
 func NewApp(artists []models.Artist) *AppWindow {
@@ -20,10 +22,14 @@ func NewApp(artists []models.Artist) *AppWindow {
 	myWindow.Resize(fyne.NewSize(1200, 800))
 	myWindow.CenterOnScreen()
 
+	// Enrichir les artistes avec lieux et dates
+	enrichedArtists := services.EnrichArtists(artists)
+
 	return &AppWindow{
-		App:        myApp,
-		Window:     myWindow,
-		AllArtists: artists,
+		App:             myApp,
+		Window:          myWindow,
+		AllArtists:      artists,
+		EnrichedArtists: enrichedArtists,
 	}
 }
 

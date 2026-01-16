@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-func SearchArtists(artists []models.Artist, query string) []models.Artist {
+// SearchArtistsLegacy - returns basic model.Artist list (backward compatibility)
+func SearchArtistsLegacy(artists []models.Artist, query string) []models.Artist {
 	query = strings.ToLower(query)
 	var result []models.Artist
 	for _, a := range artists {
@@ -13,7 +14,6 @@ func SearchArtists(artists []models.Artist, query string) []models.Artist {
 			result = append(result, a)
 			continue
 		}
-
 		for _, m := range a.Members {
 			if strings.Contains(strings.ToLower(m), query) {
 				result = append(result, a)
@@ -21,6 +21,5 @@ func SearchArtists(artists []models.Artist, query string) []models.Artist {
 			}
 		}
 	}
-
 	return result
 }

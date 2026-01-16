@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"groupie-tracker/models"
+	"groupie-tracker/services"
 	"strconv"
 	"strings"
 
@@ -35,11 +36,12 @@ func CreateSmartSearchBar(w *AppWindow) *fyne.Container {
 			return
 		}
 
-		suggestions := SearchArtists(w.AllArtists, query)
+		// Utiliser la recherche avancée avec lieux et dates
+		suggestions := services.SearchArtistsWithLocations(w.EnrichedArtists, query)
 		suggestionsBox.Objects = nil
 
-		if len(suggestions) > 5 {
-			suggestions = suggestions[:5]
+		if len(suggestions) > 8 {
+			suggestions = suggestions[:8]
 		}
 
 		for _, s := range suggestions {
@@ -66,13 +68,21 @@ func CreateSmartSearchBar(w *AppWindow) *fyne.Container {
 }
 
 func getIcon(t string) string {
-	icons := map[string]string{"Artiste": "🎤", "Membre": "👤", "Année": "📅", "Album": "💿"}
+	icons := map[string]string{
+		"Artiste": "🎤",
+		"Membre":  "👤",
+		"Année":   "📅",
+		"Album":   "💿",
+		"Lieu":    "📍",
+		"Date":    "🗓️",
+	}
 	if icon, ok := icons[t]; ok {
 		return icon
 	}
 	return "✨"
 }
 
+// SearchArtists effectue la recherche basique (compatible avec l'ancienne API)
 func SearchArtists(artists []models.Artist, query string) []SearchSuggestion {
 	if query == "" {
 		return nil

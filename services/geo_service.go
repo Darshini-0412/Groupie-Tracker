@@ -16,7 +16,7 @@ type Coordinates struct {
 	Lon     float64
 }
 
-// --- Fonction Fetch générique (corrige ton erreur "undefined: Fetch") ---
+// --- Fonction Fetch générique ---
 func Fetch[T any](url string) (T, error) {
 	var result T
 
@@ -34,19 +34,26 @@ func Fetch[T any](url string) (T, error) {
 	return result, nil
 }
 
-// --- Récupère les coordonnées pour chaque lieu d’un artiste ---
+// --- Récupère les coordonnées pour un artiste ---
 func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
 	var coords []Coordinates
 
-	// Récupérer les lieux de l'artiste depuis l'API
-	location, err := Fetch[models.Location](artist.Locations)
+	// 1. Récupérer les relations de l'artiste
+	rel, err := FetchRelationByID(artist.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, locStr := range location.Locations {
-		// Format attendu : "Ville, Pays"
-		parts := strings.Split(locStr, ",")
+	// 2. Séparer concerts passés / futurs
+	past, future := SplitPastFutureConcerts(*rel)
+
+	// 3. Fusionner les deux listes (ou choisir l’une des deux)
+	allLocations := append(past, future...)
+
+	// 4. Géolocaliser chaque lieu
+	for _, locStr := range allLocations {
+		// Format API : "Paris-France"
+		parts := strings.Split(locStr, "-")
 		if len(parts) != 2 {
 			continue
 		}
@@ -54,12 +61,11 @@ func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
 		city := strings.TrimSpace(parts[0])
 		country := strings.TrimSpace(parts[1])
 
-		// Exemple : "Paris France"
 		query := fmt.Sprintf("%s %s", city, country)
 
 		result, err := localisation.SearchLocation(query)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		coords = append(coords, Coordinates{
