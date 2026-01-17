@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"groupie-tracker/models"
+	"groupie-tracker/services"
 	"io"
 	"net/http"
 
@@ -28,8 +29,18 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 		return container.NewVBox(widget.NewLabel("Artiste non trouvé"))
 	}
 
-	backBtn := widget.NewButton("← Retour à la liste", func() {
+	backBtn := widget.NewButton("← Retour", func() {
 		w.ShowArtistList()
+	})
+
+	favoriteIcon := "🤍"
+	if w.Favorites.IsFavorite(artist.ID) {
+		favoriteIcon = "❤️"
+	}
+
+	favoriteBtn := widget.NewButton(favoriteIcon+" Ma Sélection", func() {
+		w.Favorites.Toggle(artist.ID)
+		w.ShowArtistDetail(artistName)
 	})
 
 	img := loadImageFromURL(artist.Image)
@@ -40,21 +51,67 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
 	header := container.NewVBox(
+		container.NewHBox(backBtn, favoriteBtn),
 		container.NewCenter(img),
 		container.NewCenter(title),
 	)
 
 	infoCard := makeDetailInfoCard(artist)
 	membersCard := makeDetailMembersCard(artist)
+	concertsCard := makeConcertsCard(artist)
 
 	content := container.NewVBox(
-		backBtn,
 		header,
 		infoCard,
 		membersCard,
+		concertsCard,
 	)
 
 	return content
+}
+
+func makeConcertsCard(artist models.Artist) *fyne.Container {
+	bg := canvas.NewRectangle(bgCard)
+
+	titleLabel := canvas.NewText("🎤 Dates et Lieux des Concerts", textGray)
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	titleLabel.TextSize = 20
+
+	relation, err := services.FetchRelationByID(artist.ID)
+	if err != nil {
+		errorLabel := widget.NewLabel("Impossible de charger les concerts")
+		return container.NewStack(bg, container.NewPadded(container.NewVBox(titleLabel, errorLabel)))
+	}
+
+	concertsList := container.NewVBox()
+
+	if len(relation.DatesLocations) == 0 {
+		noConcerts := widget.NewLabel("Aucun concert programmé")
+		concertsList.Add(noConcerts)
+	} else {
+		for location, dates := range relation.DatesLocations {
+			locationLabel := canvas.NewText("📍 "+location, textGray)
+			locationLabel.TextStyle = fyne.TextStyle{Bold: true}
+			concertsList.Add(locationLabel)
+
+			for _, date := range dates {
+				dateLabel := widget.NewLabel("   📅 " + date)
+				concertsList.Add(dateLabel)
+			}
+			concertsList.Add(widget.NewSeparator())
+		}
+	}
+
+	scroll := container.NewVScroll(concertsList)
+	scroll.SetMinSize(fyne.NewSize(0, 300))
+
+	content := container.NewVBox(
+		titleLabel,
+		widget.NewSeparator(),
+		scroll,
+	)
+
+	return container.NewStack(bg, container.NewPadded(content))
 }
 
 func makeDetailInfoCard(artist models.Artist) *fyne.Container {

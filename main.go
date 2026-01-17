@@ -9,10 +9,9 @@ import (
 func main() {
 	artists, err := services.FetchArtists()
 	if err != nil {
-		log.Fatal("Erreur lors du chargement des artistes:", err)
+		log.Fatal("Erreur chargement:", err)
 	}
 
 	app := ui.NewApp(artists)
-	app.ShowArtistList()
 	app.Run()
 }

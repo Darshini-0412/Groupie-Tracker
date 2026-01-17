@@ -14,15 +14,16 @@ type AppWindow struct {
 	Window          fyne.Window
 	AllArtists      []models.Artist
 	EnrichedArtists []services.ArtistEnriched
+	Favorites       *FavoritesManager
 }
 
 func NewApp(artists []models.Artist) *AppWindow {
 	myApp := app.New()
+
 	myWindow := myApp.NewWindow("Groupie Tracker")
-	myWindow.Resize(fyne.NewSize(1200, 800))
+	myWindow.Resize(fyne.NewSize(1400, 900))
 	myWindow.CenterOnScreen()
 
-	// Enrichir les artistes avec lieux et dates
 	enrichedArtists := services.EnrichArtists(artists)
 
 	return &AppWindow{
@@ -30,19 +31,18 @@ func NewApp(artists []models.Artist) *AppWindow {
 		Window:          myWindow,
 		AllArtists:      artists,
 		EnrichedArtists: enrichedArtists,
+		Favorites:       NewFavoritesManager(),
 	}
 }
 
 func (w *AppWindow) ShowArtistList() {
 	content := RenderArtistList(w.AllArtists, w)
-	scroll := container.NewVScroll(content)
-	w.Window.SetContent(scroll)
+	w.Window.SetContent(content)
 }
 
 func (w *AppWindow) ShowFilteredArtistList(filteredArtists []models.Artist) {
 	content := RenderArtistList(filteredArtists, w)
-	scroll := container.NewVScroll(content)
-	w.Window.SetContent(scroll)
+	w.Window.SetContent(content)
 }
 
 func (w *AppWindow) ShowArtistDetail(artistName string) {
@@ -52,5 +52,6 @@ func (w *AppWindow) ShowArtistDetail(artistName string) {
 }
 
 func (w *AppWindow) Run() {
+	w.ShowArtistList()
 	w.Window.ShowAndRun()
 }

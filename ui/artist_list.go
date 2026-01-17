@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"groupie-tracker/models"
 	"image/color"
-	"io"
-	"net/http"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -16,12 +14,11 @@ import (
 
 var (
 	bgCard   = color.RGBA{R: 10, G: 10, B: 40, A: 255}
-	blueSpot = color.RGBA{R: 30, G: 144, B: 255, A: 255}
 	textGray = color.RGBA{R: 220, G: 220, B: 220, A: 255}
 )
 
 func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
-	title := canvas.NewText("GROUPIE TRACKER", textGray)
+	title := canvas.NewText("ＧRØUPIE TЯΛCKΞR", nil)
 	title.TextSize = 32
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Alignment = fyne.TextAlignCenter
@@ -40,37 +37,45 @@ func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 		return container.NewBorder(header, nil, nil, nil, container.NewCenter(emptyMsg))
 	}
 
-	var content fyne.CanvasObject
+	var scrollContent *fyne.Container
 
 	if len(artists) == len(w.AllArtists) {
-		popularSection := createSection("🔥 Artistes les plus écoutés", getRange(artists, 0, 10), w)
-		recentSection := createSection("🕐 Récemment écoutés", getRange(artists, 10, 15), w)
-		suggestionsSection := createSection("💡 Suggestions", getRange(artists, 15, 20), w)
-		allSection := createSection("📋 Tous les artistes", artists, w)
+		sections := []fyne.CanvasObject{}
 
-		mainContent := container.NewVBox(
-			popularSection,
-			widget.NewSeparator(),
-			recentSection,
-			widget.NewSeparator(),
-			suggestionsSection,
-			widget.NewSeparator(),
-			allSection,
-		)
-		content = container.NewVScroll(mainContent)
+		favoriteArtists := w.Favorites.GetFavorites(w.AllArtists)
+		if len(favoriteArtists) > 0 {
+			favSection := createSection("❤️ Ma Sélection", favoriteArtists, w)
+			sections = append(sections, favSection, widget.NewSeparator())
+		}
+
+		popularSection := createSection("🔥 Artistes les plus écoutés", getArtistsRange(artists, 0, 10), w)
+		sections = append(sections, popularSection, widget.NewSeparator())
+
+		recentSection := createSection("🕐 Récemment écoutés", getArtistsRange(artists, 10, 15), w)
+		sections = append(sections, recentSection, widget.NewSeparator())
+
+		suggestionsSection := createSection("💡 Suggestions", getArtistsRange(artists, 15, 20), w)
+		sections = append(sections, suggestionsSection, widget.NewSeparator())
+
+		allSection := createSection("📋 Tous les artistes", artists, w)
+		sections = append(sections, allSection)
+
+		scrollContent = container.NewVBox(sections...)
 	} else {
 		resultSection := createSection(fmt.Sprintf("🔍 Résultats (%d)", len(artists)), artists, w)
-		content = container.NewVScroll(resultSection)
+		scrollContent = resultSection
 	}
 
-	filtersPanel := RenderFiltersPanel(w.AllArtists, w)
+	content := container.NewVScroll(scrollContent)
+
+	filtersPanel := CreateFiltersPanel(w.AllArtists, w)
 	separator := canvas.NewRectangle(color.RGBA{R: 100, G: 100, B: 100, A: 255})
 	separator.SetMinSize(fyne.NewSize(2, 0))
 
 	return container.NewBorder(header, nil, container.NewHBox(filtersPanel, separator), nil, content)
 }
 
-func getRange(artists []models.Artist, start, end int) []models.Artist {
+func getArtistsRange(artists []models.Artist, start, end int) []models.Artist {
 	if start >= len(artists) {
 		return []models.Artist{}
 	}
@@ -80,22 +85,26 @@ func getRange(artists []models.Artist, start, end int) []models.Artist {
 	return artists[start:end]
 }
 
-func createSection(title string, artists []models.Artist, w *AppWindow) *fyne.Container {
-	titleText := canvas.NewText(title, textGray)
+func createSection(sectionTitle string, artists []models.Artist, w *AppWindow) *fyne.Container {
+	titleText := canvas.NewText(sectionTitle, nil)
 	titleText.TextStyle = fyne.TextStyle{Bold: true}
 	titleText.TextSize = 20
 
-	grid := container.New(layout.NewGridWrapLayout(fyne.NewSize(250, 380)))
+	grid := container.New(layout.NewGridWrapLayout(fyne.NewSize(250, 400)))
 
 	for _, artist := range artists {
-		grid.Add(makeArtistCard(artist, w))
+		card := makeRealArtistCard(artist, w)
+		grid.Add(card)
 	}
 
-	return container.NewVBox(container.NewPadded(titleText), grid)
+	return container.NewVBox(
+		container.NewPadded(titleText),
+		grid,
+	)
 }
 
-func makeArtistCard(artist models.Artist, w *AppWindow) *fyne.Container {
-	img := loadImage(artist.Image)
+func makeRealArtistCard(artist models.Artist, w *AppWindow) *fyne.Container {
+	img := loadImageFromURL(artist.Image)
 	img.SetMinSize(fyne.NewSize(230, 230))
 
 	name := widget.NewLabel(artist.Name)
@@ -103,29 +112,26 @@ func makeArtistCard(artist models.Artist, w *AppWindow) *fyne.Container {
 	name.Alignment = fyne.TextAlignCenter
 	name.Wrapping = fyne.TextWrapWord
 
-	info := widget.NewLabel(fmt.Sprintf("👥 %d membres | 📅 %d", len(artist.Members), artist.CreationDate))
+	membersCount := len(artist.Members)
+	info := widget.NewLabel(fmt.Sprintf("👥 %d membres | 📅 %d", membersCount, artist.CreationDate))
 	info.Alignment = fyne.TextAlignCenter
 
-	btn := widget.NewButton("Voir détails", func() {
+	favoriteIcon := "🤍"
+	if w.Favorites.IsFavorite(artist.ID) {
+		favoriteIcon = "❤️"
+	}
+
+	favoriteBtn := widget.NewButton(favoriteIcon, func() {
+		w.Favorites.Toggle(artist.ID)
+		w.ShowArtistList()
+	})
+
+	detailBtn := widget.NewButton("Voir détails", func() {
 		w.ShowArtistDetail(artist.Name)
 	})
 
-	return container.NewVBox(img, name, info, btn)
-}
+	buttons := container.NewGridWithColumns(2, favoriteBtn, detailBtn)
 
-func loadImage(url string) *canvas.Image {
-	resp, err := http.Get(url)
-	if err != nil {
-		return canvas.NewImageFromImage(nil)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return canvas.NewImageFromImage(nil)
-	}
-
-	img := &canvas.Image{Resource: fyne.NewStaticResource(url, data)}
-	img.FillMode = canvas.ImageFillContain
-	return img
+	card := container.NewVBox(img, name, info, buttons)
+	return card
 }
