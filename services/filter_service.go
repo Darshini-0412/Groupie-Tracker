@@ -51,7 +51,6 @@ func FilterByLocations(artists []models.Artist, selectedLocations []string) []mo
 			continue
 		}
 
-		// Vérifier si l'artiste a des concerts dans les lieux sélectionnés
 		hasMatchingLocation := false
 		for location := range relation.DatesLocations {
 			locationLower := strings.ToLower(location)
@@ -77,7 +76,6 @@ func FilterByLocations(artists []models.Artist, selectedLocations []string) []mo
 	return filtered
 }
 
-// NOUVEAU - Récupère tous les lieux uniques depuis l'API
 func GetAllUniqueLocations(artists []models.Artist) []string {
 	locationSet := make(map[string]bool)
 
@@ -88,13 +86,12 @@ func GetAllUniqueLocations(artists []models.Artist) []string {
 		}
 
 		for location := range relation.DatesLocations {
-			// Nettoyer et formater le lieu
+
 			cleanLocation := formatLocationName(location)
 			locationSet[cleanLocation] = true
 		}
 	}
 
-	// Convertir le map en slice
 	var locations []string
 	for loc := range locationSet {
 		locations = append(locations, loc)
@@ -103,9 +100,8 @@ func GetAllUniqueLocations(artists []models.Artist) []string {
 	return locations
 }
 
-// Helper pour formater les noms de lieux
 func formatLocationName(location string) string {
-	// Remplacer underscores et tirets
+
 	location = strings.ReplaceAll(location, "_", " ")
 	parts := strings.Split(location, "-")
 

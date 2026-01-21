@@ -31,7 +31,6 @@ func GetArtistConcertDates(artistID int) ([]string, error) {
 		}
 	}
 
-	// Convertir la map en slice
 	var allDates []string
 	for date := range datesMap {
 		allDates = append(allDates, date)
@@ -40,7 +39,6 @@ func GetArtistConcertDates(artistID int) ([]string, error) {
 	return allDates, nil
 }
 
-// GetDatesByID récupère la liste complète des dates depuis l'API
 func GetDatesByID(id int) (*models.Date, error) {
 	url := fmt.Sprintf("%s/dates/%d", APIBaseURL, id)
 

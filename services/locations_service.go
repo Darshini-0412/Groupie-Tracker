@@ -18,24 +18,21 @@ func GetLocations() ([]models.Location, error) {
 	return Fetch[[]models.Location](url)
 }
 
-// GetArtistLocations récupère les lieux de concert pour un artiste
 func GetArtistLocations(artistID int) ([]string, error) {
 	rel, err := FetchRelationByID(artistID)
 	if err != nil {
 		return nil, fmt.Errorf("erreur récupération relation: %v", err)
 	}
 
-	// Extraire les lieux uniques des DatesLocations
 	locationsMap := make(map[string]bool)
 	for location := range rel.DatesLocations {
-		// Format: "city-country", on nettoie un peu
+
 		location = strings.TrimSpace(location)
 		if location != "" {
 			locationsMap[location] = true
 		}
 	}
 
-	// Convertir la map en slice
 	var locations []string
 	for loc := range locationsMap {
 		locations = append(locations, loc)
@@ -44,7 +41,6 @@ func GetArtistLocations(artistID int) ([]string, error) {
 	return locations, nil
 }
 
-// GetLocationsByID récupère la liste complète des lieux depuis l'API
 func GetLocationsByID(id int) (*models.Location, error) {
 	url := fmt.Sprintf("%s/locations/%d", APIBaseURL, id)
 

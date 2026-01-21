@@ -3,7 +3,9 @@ package ui
 import (
 	"fmt"
 	"groupie-tracker/models"
+	"groupie-tracker/services"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -24,14 +26,6 @@ func CreateFiltersPanel(allArtists []models.Artist, w *AppWindow) *fyne.Containe
 	maxYearEntry := widget.NewEntry()
 	maxYearEntry.SetPlaceHolder("Max")
 
-	membersLabel := widget.NewLabel("Nombre de membres:")
-	membersLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	minMembersEntry := widget.NewEntry()
-	minMembersEntry.SetPlaceHolder("Min")
-	maxMembersEntry := widget.NewEntry()
-	maxMembersEntry.SetPlaceHolder("Max")
-
 	albumLabel := widget.NewLabel("Année premier album:")
 	albumLabel.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -39,6 +33,25 @@ func CreateFiltersPanel(allArtists []models.Artist, w *AppWindow) *fyne.Containe
 	minAlbumEntry.SetPlaceHolder("Min")
 	maxAlbumEntry := widget.NewEntry()
 	maxAlbumEntry.SetPlaceHolder("Max")
+
+	locationLabel := widget.NewLabel("Lieu des concerts:")
+	locationLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	locationEntry := widget.NewEntry()
+	locationEntry.SetPlaceHolder("Ex: paris, usa, london...")
+
+	membersLabel := widget.NewLabel("Nombre de membres:")
+	membersLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	memberChecks := make([]*widget.Check, 0)
+	memberContainer := container.NewVBox()
+
+	for i := 1; i <= 8; i++ {
+		num := i
+		check := widget.NewCheck(fmt.Sprintf("%d", num), nil)
+		memberChecks = append(memberChecks, check)
+		memberContainer.Add(check)
+	}
 
 	applyBtn := widget.NewButton("✓ Appliquer", func() {
 		filtered := allArtists
@@ -49,10 +62,14 @@ func CreateFiltersPanel(allArtists []models.Artist, w *AppWindow) *fyne.Containe
 			filtered = filterByCreationYear(filtered, minYear, maxYear)
 		}
 
-		if minMembersEntry.Text != "" && maxMembersEntry.Text != "" {
-			minMembers, _ := strconv.Atoi(minMembersEntry.Text)
-			maxMembers, _ := strconv.Atoi(maxMembersEntry.Text)
-			filtered = filterByMembers(filtered, minMembers, maxMembers)
+		selectedMembers := []int{}
+		for i, check := range memberChecks {
+			if check.Checked {
+				selectedMembers = append(selectedMembers, i+1)
+			}
+		}
+		if len(selectedMembers) > 0 {
+			filtered = filterByMembersCheckbox(filtered, selectedMembers)
 		}
 
 		if minAlbumEntry.Text != "" && maxAlbumEntry.Text != "" {
@@ -61,16 +78,25 @@ func CreateFiltersPanel(allArtists []models.Artist, w *AppWindow) *fyne.Containe
 			filtered = filterByFirstAlbum(filtered, minAlbum, maxAlbum)
 		}
 
+		if locationEntry.Text != "" {
+			locationQuery := strings.TrimSpace(locationEntry.Text)
+			filtered = filterByLocationText(filtered, locationQuery)
+		}
+
 		w.ShowFilteredArtistList(filtered)
 	})
 
 	resetBtn := widget.NewButton("↺ Réinitialiser", func() {
 		minYearEntry.SetText("")
 		maxYearEntry.SetText("")
-		minMembersEntry.SetText("")
-		maxMembersEntry.SetText("")
 		minAlbumEntry.SetText("")
 		maxAlbumEntry.SetText("")
+		locationEntry.SetText("")
+
+		for _, check := range memberChecks {
+			check.SetChecked(false)
+		}
+
 		w.ShowArtistList()
 	})
 
@@ -80,11 +106,14 @@ func CreateFiltersPanel(allArtists []models.Artist, w *AppWindow) *fyne.Containe
 		yearLabel,
 		container.NewGridWithColumns(2, minYearEntry, maxYearEntry),
 		widget.NewSeparator(),
-		membersLabel,
-		container.NewGridWithColumns(2, minMembersEntry, maxMembersEntry),
-		widget.NewSeparator(),
 		albumLabel,
 		container.NewGridWithColumns(2, minAlbumEntry, maxAlbumEntry),
+		widget.NewSeparator(),
+		locationLabel,
+		locationEntry,
+		widget.NewSeparator(),
+		membersLabel,
+		memberContainer,
 		widget.NewSeparator(),
 		applyBtn,
 		resetBtn,
@@ -101,12 +130,15 @@ func filterByCreationYear(artists []models.Artist, min, max int) []models.Artist
 	return result
 }
 
-func filterByMembers(artists []models.Artist, min, max int) []models.Artist {
+func filterByMembersCheckbox(artists []models.Artist, selectedCounts []int) []models.Artist {
 	var result []models.Artist
 	for _, artist := range artists {
 		count := len(artist.Members)
-		if count >= min && count <= max {
-			result = append(result, artist)
+		for _, selected := range selectedCounts {
+			if count == selected {
+				result = append(result, artist)
+				break
+			}
 		}
 	}
 	return result
@@ -120,6 +152,33 @@ func filterByFirstAlbum(artists []models.Artist, min, max int) []models.Artist {
 			result = append(result, artist)
 		}
 	}
+	return result
+}
+
+func filterByLocationText(artists []models.Artist, query string) []models.Artist {
+	query = strings.ToLower(strings.TrimSpace(query))
+	var result []models.Artist
+
+	for _, artist := range artists {
+		relation, err := services.FetchRelationByID(artist.ID)
+		if err != nil {
+			continue
+		}
+
+		found := false
+		for location := range relation.DatesLocations {
+			locationLower := strings.ToLower(location)
+			if strings.Contains(locationLower, query) {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			result = append(result, artist)
+		}
+	}
+
 	return result
 }
 

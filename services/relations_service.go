@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time" // ← nécessaire pour l’étape B
+	"time"
 )
 
 type Relations struct {
@@ -70,10 +70,6 @@ func FetchRelationByID(id int) (*Relation, error) {
 
 	return &relation, nil
 }
-
-//
-// ⭐ ÉTAPE B — Séparer les concerts passés et futurs
-//
 
 func SplitPastFutureConcerts(rel Relation) (past []string, future []string) {
 	now := time.Now()

@@ -29,18 +29,11 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 		return container.NewVBox(widget.NewLabel("Artiste non trouvé"))
 	}
 
+	// ✅ LIEU SÉLECTIONNÉ (simple string)
+	var selectedLocation string
+
 	backBtn := widget.NewButton("← Retour", func() {
 		w.ShowArtistList()
-	})
-
-	favoriteIcon := "🤍"
-	if w.Favorites.IsFavorite(artist.ID) {
-		favoriteIcon = "❤️"
-	}
-
-	favoriteBtn := widget.NewButton(favoriteIcon+" Ma Sélection", func() {
-		w.Favorites.Toggle(artist.ID)
-		w.ShowArtistDetail(artistName)
 	})
 
 	img := loadImageFromURL(artist.Image)
@@ -51,26 +44,79 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
 	header := container.NewVBox(
-		container.NewHBox(backBtn, favoriteBtn),
+		container.NewHBox(backBtn),
 		container.NewCenter(img),
 		container.NewCenter(title),
 	)
 
-	infoCard := makeDetailInfoCard(artist)
-	membersCard := makeDetailMembersCard(artist)
-	concertsCard := makeConcertsCard(artist)
+	mapCard, refreshMap := makeMapCard(artist, &selectedLocation)
+	concertsCard := makeConcertsCard(artist, &selectedLocation, refreshMap)
 
 	content := container.NewVBox(
 		header,
-		infoCard,
-		membersCard,
+		makeDetailInfoCard(artist),
+		makeDetailMembersCard(artist),
 		concertsCard,
+		mapCard,
 	)
 
 	return content
 }
 
-func makeConcertsCard(artist models.Artist) *fyne.Container {
+/* =========================
+   🗺️ MAP CARD
+   ========================= */
+
+func makeMapCard(
+	artist models.Artist,
+	selected *string,
+) (*fyne.Container, func()) {
+
+	bg := canvas.NewRectangle(bgCard)
+
+	titleLabel := canvas.NewText("🗺️ Carte des concerts", textGray)
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	titleLabel.TextSize = 20
+
+	relation, err := services.FetchRelationByID(artist.ID)
+	if err != nil {
+		errorLabel := widget.NewLabel("Impossible de charger la carte")
+		return container.NewStack(bg, errorLabel), func() {}
+	}
+
+	past, future := services.SplitPastFutureConcerts(*relation)
+
+	mapBox := container.NewVBox()
+
+	refresh := func() {
+		mapBox.Objects = nil
+		mapBox.Objects = []fyne.CanvasObject{
+			RenderMap(past, future, selected),
+		}
+		mapBox.Refresh()
+	}
+
+	refresh()
+
+	content := container.NewVBox(
+		titleLabel,
+		widget.NewSeparator(),
+		mapBox,
+	)
+
+	return container.NewStack(bg, container.NewPadded(content)), refresh
+}
+
+/* =========================
+   🎤 CONCERTS CARD
+   ========================= */
+
+func makeConcertsCard(
+	artist models.Artist,
+	selected *string,
+	refreshMap func(),
+) *fyne.Container {
+
 	bg := canvas.NewRectangle(bgCard)
 
 	titleLabel := canvas.NewText("🎤 Dates et Lieux des Concerts", textGray)
@@ -79,30 +125,29 @@ func makeConcertsCard(artist models.Artist) *fyne.Container {
 
 	relation, err := services.FetchRelationByID(artist.ID)
 	if err != nil {
-		errorLabel := widget.NewLabel("Impossible de charger les concerts")
-		return container.NewStack(bg, container.NewPadded(container.NewVBox(titleLabel, errorLabel)))
+		return container.NewStack(bg, widget.NewLabel("Erreur concerts"))
 	}
 
-	concertsList := container.NewVBox()
+	list := container.NewVBox()
 
-	if len(relation.DatesLocations) == 0 {
-		noConcerts := widget.NewLabel("Aucun concert programmé")
-		concertsList.Add(noConcerts)
-	} else {
-		for location, dates := range relation.DatesLocations {
-			locationLabel := canvas.NewText("📍 "+location, textGray)
-			locationLabel.TextStyle = fyne.TextStyle{Bold: true}
-			concertsList.Add(locationLabel)
+	for location, dates := range relation.DatesLocations {
+		loc := location
 
-			for _, date := range dates {
-				dateLabel := widget.NewLabel("   📅 " + date)
-				concertsList.Add(dateLabel)
-			}
-			concertsList.Add(widget.NewSeparator())
+		btn := widget.NewButton("📍 "+loc, func() {
+			*selected = loc
+			refreshMap()
+		})
+		btn.Importance = widget.LowImportance
+		list.Add(btn)
+
+		for _, date := range dates {
+			list.Add(widget.NewLabel("   📅 " + date))
 		}
+
+		list.Add(widget.NewSeparator())
 	}
 
-	scroll := container.NewVScroll(concertsList)
+	scroll := container.NewVScroll(list)
 	scroll.SetMinSize(fyne.NewSize(0, 300))
 
 	content := container.NewVBox(
@@ -114,24 +159,23 @@ func makeConcertsCard(artist models.Artist) *fyne.Container {
 	return container.NewStack(bg, container.NewPadded(content))
 }
 
+/* =========================
+   🧩 AUTRES CARTES
+   ========================= */
+
 func makeDetailInfoCard(artist models.Artist) *fyne.Container {
 	bg := canvas.NewRectangle(bgCard)
-	bg.SetMinSize(fyne.NewSize(0, 150))
 
 	titleLabel := canvas.NewText("📋 Informations", textGray)
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	titleLabel.TextSize = 20
 
-	yearLabel := canvas.NewText(fmt.Sprintf("📅 Année de création: %d", artist.CreationDate), textGray)
-	albumLabel := canvas.NewText(fmt.Sprintf("💿 Premier album: %s", artist.FirstAlbum), textGray)
-	membersCountLabel := canvas.NewText(fmt.Sprintf("👥 Nombre de membres: %d", len(artist.Members)), textGray)
-
 	info := container.NewVBox(
 		titleLabel,
 		widget.NewSeparator(),
-		yearLabel,
-		albumLabel,
-		membersCountLabel,
+		canvas.NewText(fmt.Sprintf("📅 Année: %d", artist.CreationDate), textGray),
+		canvas.NewText(fmt.Sprintf("💿 Premier album: %s", artist.FirstAlbum), textGray),
+		canvas.NewText(fmt.Sprintf("👥 Membres: %d", len(artist.Members)), textGray),
 	)
 
 	return container.NewStack(bg, container.NewPadded(info))
@@ -144,19 +188,15 @@ func makeDetailMembersCard(artist models.Artist) *fyne.Container {
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	titleLabel.TextSize = 20
 
-	membersList := container.NewVBox()
-	for _, member := range artist.Members {
-		memberText := canvas.NewText("• "+member, textGray)
-		membersList.Add(memberText)
+	list := container.NewVBox()
+	for _, m := range artist.Members {
+		list.Add(canvas.NewText("• "+m, textGray))
 	}
 
-	content := container.NewVBox(
-		titleLabel,
-		widget.NewSeparator(),
-		membersList,
+	return container.NewStack(
+		bg,
+		container.NewPadded(container.NewVBox(titleLabel, widget.NewSeparator(), list)),
 	)
-
-	return container.NewStack(bg, container.NewPadded(content))
 }
 
 func loadImageFromURL(url string) *canvas.Image {

@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// SearchArtistsLegacy - returns basic model.Artist list (backward compatibility)
 func SearchArtistsLegacy(artists []models.Artist, query string) []models.Artist {
 	query = strings.ToLower(query)
 	var result []models.Artist
