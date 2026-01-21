@@ -14,9 +14,10 @@ type Relations struct {
 
 type Relation struct {
 	ID             int                 `json:"id"`
-	DatesLocations map[string][]string `json:"datesLocations"`
+	DatesLocations map[string][]string `json:"datesLocations"` // Le cœur du projet !
 }
 
+// FetchRelations récupère toutes les relations
 func FetchRelations() (*Relations, error) {
 	url := APIBaseURL + "/relation"
 
@@ -44,6 +45,7 @@ func FetchRelations() (*Relations, error) {
 	return &relations, nil
 }
 
+// FetchRelationByID récupère la relation d'un artiste spécifique
 func FetchRelationByID(id int) (*Relation, error) {
 	url := fmt.Sprintf("%s/relation/%d", APIBaseURL, id)
 
@@ -71,16 +73,20 @@ func FetchRelationByID(id int) (*Relation, error) {
 	return &relation, nil
 }
 
+// SplitPastFutureConcerts sépare les concerts passés et futurs
+// Super utile pour afficher différemment sur la carte
 func SplitPastFutureConcerts(rel Relation) (past []string, future []string) {
 	now := time.Now()
 
 	for location, dates := range rel.DatesLocations {
 		for _, d := range dates {
+			// Parse la date au format "2006-01-02"
 			date, err := time.Parse("2006-01-02", d)
 			if err != nil {
-				continue
+				continue // Si la date est mal formatée, on skip
 			}
 
+			// Comparaison avec aujourd'hui
 			if date.Before(now) {
 				past = append(past, location)
 			} else {

@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
+// Test pour vérifier qu'on parse bien le JSON de l'API
 func TestArtistParsing(t *testing.T) {
+	// JSON d'exemple qui ressemble à ce que renvoie l'API
 	jsonData := `{
 		"id": 1,
 		"name": "Queen",
@@ -24,6 +26,7 @@ func TestArtistParsing(t *testing.T) {
 		t.Errorf("Failed to parse JSON: %v", err)
 	}
 
+	// On vérifie que le nom est bien "Queen"
 	if a.Name != "Queen" {
 		t.Errorf("Expected name 'Queen', got '%s'", a.Name)
 	}

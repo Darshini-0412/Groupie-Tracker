@@ -8,6 +8,7 @@ import (
 	"net/http"
 )
 
+// FetchArtistByID récupère un artiste spécifique par son ID
 func FetchArtistByID(id int) (*models.Artist, error) {
 	url := fmt.Sprintf("%s/artists/%d", APIBaseURL, id)
 

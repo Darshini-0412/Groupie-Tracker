@@ -9,13 +9,16 @@ import (
 	"strings"
 )
 
+// Coordinates représente les coordonnées GPS d'un lieu
 type Coordinates struct {
 	City    string
 	Country string
-	Lat     float64
-	Lon     float64
+	Lat     float64 // Latitude
+	Lon     float64 // Longitude
 }
 
+// Fetch est une fonction générique pour récupérer des données JSON
+// Le [T any] c'est la "magie" des generics de Go 1.18+
 func Fetch[T any](url string) (T, error) {
 	var result T
 
@@ -33,6 +36,7 @@ func Fetch[T any](url string) (T, error) {
 	return result, nil
 }
 
+// GetArtistCoordinates récupère les coordonnées GPS de tous les concerts d'un artiste
 func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
 	var coords []Coordinates
 
@@ -41,19 +45,20 @@ func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
 		return nil, err
 	}
 
+	// Récupération des lieux passés ET futurs
 	past, future := SplitPastFutureConcerts(*rel)
 	allLocations := append(past, future...)
 
-	// Utiliser un map pour éviter les doublons
+	// Map pour éviter de géocoder 2 fois le même lieu
 	locationSet := make(map[string]bool)
 
 	for _, locStr := range allLocations {
 		if locationSet[locStr] {
-			continue
+			continue // Déjà traité
 		}
 		locationSet[locStr] = true
 
-		// Nettoyer l'adresse
+		// Nettoyage de l'adresse avant géocodage
 		clean := cleanAddressForGeocoding(locStr)
 
 		result, err := localisation.SearchLocation(clean)
@@ -73,12 +78,11 @@ func GetArtistCoordinates(artist models.Artist) ([]Coordinates, error) {
 	return coords, nil
 }
 
-// GeocodeAddress géocode une adresse en coordonnées
+// GeocodeAddress convertit une adresse en coordonnées GPS
 func GeocodeAddress(address string) (Coordinates, error) {
-	// Nettoyer l'adresse avant géocodage
+	// Nettoyage avant l'appel API
 	clean := cleanAddressForGeocoding(address)
 
-	// Appel API avec adresse nettoyée
 	result, err := localisation.SearchLocation(clean)
 	if err != nil {
 		return Coordinates{}, fmt.Errorf("erreur géocodage pour '%s': %v", clean, err)
@@ -92,7 +96,8 @@ func GeocodeAddress(address string) (Coordinates, error) {
 	}, nil
 }
 
-// cleanAddressForGeocoding nettoie une adresse pour le géocodage
+// cleanAddressForGeocoding prépare une adresse pour le géocodage
+// Ex: "los_angeles-usa" → "Los Angeles USA"
 func cleanAddressForGeocoding(address string) string {
 	// Remplacer tirets et underscores par espaces
 	clean := strings.ReplaceAll(address, "-", " ")
@@ -102,11 +107,11 @@ func cleanAddressForGeocoding(address string) string {
 	clean = strings.TrimSpace(clean)
 	clean = strings.Join(strings.Fields(clean), " ")
 
-	// Capitaliser correctement pour une meilleure reconnaissance
+	// Capitalisation intelligente
 	parts := strings.Split(clean, " ")
 	for i, part := range parts {
 		if len(part) > 0 {
-			// Garder les codes pays en majuscules (ex: USA, UK)
+			// Garder codes pays en majuscules (USA, UK, etc.)
 			if len(part) <= 3 && strings.ToUpper(part) == part {
 				parts[i] = strings.ToUpper(part)
 			} else {
