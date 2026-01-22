@@ -1,3 +1,4 @@
+// artist.go
 package models
 
 type Artist struct {
@@ -10,4 +11,5 @@ type Artist struct {
 	Locations    string   `json:"locations"`
 	ConcertDates string   `json:"concertDates"`
 	Relations    string   `json:"relations"`
+	SpotifyURL   string   `json:"-"` // pas dans l'API, on le génère nous-mêmes
 }

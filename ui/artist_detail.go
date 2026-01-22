@@ -1,3 +1,4 @@
+// ui/artist_detail.go
 package ui
 
 import (
@@ -6,10 +7,13 @@ import (
 	"groupie-tracker/services"
 	"io"
 	"net/http"
+	"os/exec"
+	"runtime"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -36,6 +40,13 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 		w.ShowArtistList()
 	})
 
+	// bouton pour écouter sur Spotify
+	spotifyBtn := widget.NewButton("🎵 Écouter sur Spotify", func() {
+		spotifyURL := services.GenerateSpotifySearchURL(artist.Name)
+		openURL(spotifyURL)
+	})
+	spotifyBtn.Importance = widget.HighImportance
+
 	img := loadImageFromURL(artist.Image)
 	img.SetMinSize(fyne.NewSize(300, 300))
 
@@ -44,7 +55,7 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 	title.TextStyle = fyne.TextStyle{Bold: true}
 
 	header := container.NewVBox(
-		container.NewHBox(backBtn),
+		container.NewHBox(backBtn, layout.NewSpacer(), spotifyBtn),
 		container.NewCenter(img),
 		container.NewCenter(title),
 	)
@@ -61,6 +72,25 @@ func RenderArtistDetail(artistName string, w *AppWindow) *fyne.Container {
 	)
 
 	return content
+}
+
+// openURL ouvre une URL dans le navigateur par défaut
+func openURL(urlStr string) {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", urlStr)
+	case "darwin":
+		cmd = exec.Command("open", urlStr)
+	default: // linux, freebsd, etc.
+		cmd = exec.Command("xdg-open", urlStr)
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		fmt.Printf("Erreur ouverture URL: %v\n", err)
+	}
 }
 
 // makeMapCard crée la carte interactive

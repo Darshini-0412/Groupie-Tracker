@@ -3,12 +3,14 @@ package ui
 import (
 	"fmt"
 	"groupie-tracker/models"
+	"groupie-tracker/services"
 	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -19,7 +21,7 @@ var (
 
 // RenderArtistList affiche la page principale avec tous les artistes
 func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
-	title := canvas.NewText("ＧRØUPIE TЯΛCKΞR", nil)
+	title := canvas.NewText("GROUPIE TRACKER", nil)
 	title.TextSize = 32
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Alignment = fyne.TextAlignCenter
@@ -46,25 +48,25 @@ func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 
 		favoriteArtists := w.Favorites.GetFavorites(w.AllArtists)
 		if len(favoriteArtists) > 0 {
-			favSection := createSection("❤️ Ma Sélection", favoriteArtists, w)
+			favSection := createSection("Ma sélection", favoriteArtists, w)
 			sections = append(sections, favSection, widget.NewSeparator())
 		}
 
-		popularSection := createSection("🔥 Artistes les plus écoutés", getArtistsRange(artists, 0, 10), w)
+		popularSection := createSection("Artistes les plus écoutés", getArtistsRange(artists, 0, 10), w)
 		sections = append(sections, popularSection, widget.NewSeparator())
 
-		recentSection := createSection("🕐 Récemment écoutés", getArtistsRange(artists, 10, 15), w)
+		recentSection := createSection("Récemment écoutés", getArtistsRange(artists, 10, 15), w)
 		sections = append(sections, recentSection, widget.NewSeparator())
 
-		suggestionsSection := createSection("💡 Suggestions", getArtistsRange(artists, 15, 20), w)
+		suggestionsSection := createSection("Suggestions", getArtistsRange(artists, 15, 20), w)
 		sections = append(sections, suggestionsSection, widget.NewSeparator())
 
-		allSection := createSection("📋 Tous les artistes", artists, w)
+		allSection := createSection("Tous les artistes", artists, w)
 		sections = append(sections, allSection)
 
 		scrollContent = container.NewVBox(sections...)
 	} else {
-		resultSection := createSection(fmt.Sprintf("🔍 Résultats (%d)", len(artists)), artists, w)
+		resultSection := createSection(fmt.Sprintf("Résultats (%d)", len(artists)), artists, w)
 		scrollContent = resultSection
 	}
 
@@ -115,7 +117,7 @@ func makeRealArtistCard(artist models.Artist, w *AppWindow) *fyne.Container {
 	name.Wrapping = fyne.TextWrapWord
 
 	membersCount := len(artist.Members)
-	info := widget.NewLabel(fmt.Sprintf("👥 %d membres | 📅 %d", membersCount, artist.CreationDate))
+	info := widget.NewLabel(fmt.Sprintf("%d membres | %d", membersCount, artist.CreationDate))
 	info.Alignment = fyne.TextAlignCenter
 
 	favoriteIcon := "🤍"
@@ -132,8 +134,24 @@ func makeRealArtistCard(artist models.Artist, w *AppWindow) *fyne.Container {
 		w.ShowArtistDetail(artist.Name)
 	})
 
-	buttons := container.NewGridWithColumns(2, favoriteBtn, detailBtn)
+	spotifyBtn := widget.NewButtonWithIcon("Play", theme.MediaPlayIcon(), func() {
+		spotifyURL := services.GenerateSpotifySearchURL(artist.Name)
+		openURL(spotifyURL)
+	})
+	spotifyBtn.Importance = widget.MediumImportance
 
-	card := container.NewVBox(img, name, info, buttons)
+	buttons := container.NewGridWithColumns(3,
+		favoriteBtn,
+		detailBtn,
+		spotifyBtn,
+	)
+
+	card := container.NewVBox(
+		img,
+		name,
+		info,
+		buttons,
+	)
+
 	return card
 }

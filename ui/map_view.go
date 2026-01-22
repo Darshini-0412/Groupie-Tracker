@@ -137,6 +137,19 @@ func cleanAddress(address string) string {
 	return clean
 }
 
+// 🔥 AJOUT — conversion lat/lon → pixel dans l’image
+func latLonToPixel(lat, lon float64, zoom int, centerTileX, centerTileY int) (int, int) {
+	tileX, tileY := latLonToTile(lat, lon, zoom)
+
+	dx := tileX - centerTileX
+	dy := tileY - centerTileY
+
+	px := (dx+1)*256 + 128
+	py := (dy+1)*256 + 128
+
+	return px, py
+}
+
 // tryLoadMap charge la carte avec un marqueur
 func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 	centerLat, centerLon, zoom := 20.0, 0.0, 2
@@ -199,7 +212,19 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		return container.NewStack(placeholder, container.NewCenter(label))
 	}
 
-	// dessiner le marqueur au centre
+	// 🔥 AJOUT — dessiner tous les concerts
+	for _, loc := range append(future, past...) {
+		clean := cleanAddress(loc)
+		coords, err := services.GeocodeAddress(clean)
+		if err != nil {
+			continue
+		}
+
+		px, py := latLonToPixel(coords.Lat, coords.Lon, zoom, centerTileX, centerTileY)
+		drawBigMarker(mapImg, px, py)
+	}
+
+	// 🔵 marqueur du lieu sélectionné (au centre)
 	if selectedCoords != nil {
 		markerX := mapWidth / 2
 		markerY := mapHeight / 2
