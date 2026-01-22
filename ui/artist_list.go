@@ -21,7 +21,7 @@ var (
 
 // RenderArtistList affiche la page principale avec tous les artistes
 func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
-	title := canvas.NewText("GROUPIE TRACKER", nil)
+	title := canvas.NewText("ＧRØUPIE TЯΛCKΞR", nil)
 	title.TextSize = 32
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Alignment = fyne.TextAlignCenter
