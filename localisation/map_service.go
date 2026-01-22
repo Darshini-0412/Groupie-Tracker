@@ -1,3 +1,4 @@
+// localisation/map_service.go
 package localisation
 
 import (
@@ -6,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,15 +24,27 @@ type nominatimResponse struct {
 	Lon         float64 `json:"lon,string"`
 }
 
-var cache = make(map[string]Location)
+var (
+	cache        = make(map[string]Location)
+	lastRequest  time.Time
+	requestMutex sync.Mutex
+)
 
 // SearchLocation transforme une adresse en coordonnées GPS
 func SearchLocation(query string) (Location, error) {
-
 	// vérifier si on l'a déjà cherché
 	if loc, ok := cache[query]; ok {
 		return loc, nil
 	}
+
+	// respecter le rate limit de 1 req/sec
+	requestMutex.Lock()
+	timeSinceLastRequest := time.Since(lastRequest)
+	if timeSinceLastRequest < time.Second {
+		time.Sleep(time.Second - timeSinceLastRequest)
+	}
+	lastRequest = time.Now()
+	requestMutex.Unlock()
 
 	baseURL := "https://nominatim.openstreetmap.org/search"
 	params := url.Values{}
@@ -38,13 +52,29 @@ func SearchLocation(query string) (Location, error) {
 	params.Set("format", "json")
 	params.Set("limit", "1")
 
-	time.Sleep(1 * time.Second) // attendre 1 sec pour pas spam l'API
+	req, err := http.NewRequest("GET", baseURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return Location{}, err
+	}
 
-	resp, err := http.Get(baseURL + "?" + params.Encode())
+	// headers requis par Nominatim
+	req.Header.Set("User-Agent", "GroupieTracker/1.0")
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return Location{}, err
 	}
 	defer resp.Body.Close()
+
+	// si rate limited (429), attendre et réessayer
+	if resp.StatusCode == 429 {
+		time.Sleep(2 * time.Second)
+		return SearchLocation(query) // retry
+	}
 
 	var results []nominatimResponse
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
@@ -66,6 +96,7 @@ func SearchLocation(query string) (Location, error) {
 		Lon:     results[0].Lon,
 	}
 
+	// sauvegarder dans le cache
 	cache[query] = loc
 	return loc, nil
 }

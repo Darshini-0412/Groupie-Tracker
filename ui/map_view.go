@@ -18,9 +18,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// RenderMap affiche la carte avec les lieux des concerts
 func RenderMap(past []string, future []string, selected *string) *fyne.Container {
-
 	countryLabel := widget.NewLabel("🌍 Aucun pays sélectionné")
 	countryLabel.Alignment = fyne.TextAlignCenter
 	countryLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -28,7 +26,6 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 	mapContainer := container.NewMax()
 	mapContainer.Add(tryLoadMap(selected, future, past))
 
-	// la liste des lieux à gauche
 	list := widget.NewList(
 		func() int {
 			return len(future) + len(past)
@@ -77,7 +74,6 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 		},
 	)
 
-	// quand on clique sur un lieu
 	list.OnSelected = func(id widget.ListItemID) {
 		var location string
 
@@ -101,7 +97,6 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 			countryLabel.SetText("🌍 Erreur pour: " + clean)
 		}
 
-		// recharger la carte
 		newMap := tryLoadMap(selected, future, past)
 		mapContainer.RemoveAll()
 		mapContainer.Add(newMap)
@@ -137,7 +132,6 @@ func cleanAddress(address string) string {
 	return clean
 }
 
-// 🔥 AJOUT — conversion lat/lon → pixel dans l’image
 func latLonToPixel(lat, lon float64, zoom int, centerTileX, centerTileY int) (int, int) {
 	tileX, tileY := latLonToTile(lat, lon, zoom)
 
@@ -150,13 +144,11 @@ func latLonToPixel(lat, lon float64, zoom int, centerTileX, centerTileY int) (in
 	return px, py
 }
 
-// tryLoadMap charge la carte avec un marqueur
 func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 	centerLat, centerLon, zoom := 20.0, 0.0, 2
 
 	var selectedCoords *services.Coordinates
 
-	// si un lieu est sélectionné, on centre dessus
 	if selected != nil && *selected != "" {
 		coords, err := services.GeocodeAddress(*selected)
 		if err == nil {
@@ -165,26 +157,27 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		}
 	}
 
-	// calculer quelle tuile au centre
 	centerTileX, centerTileY := latLonToTile(centerLat, centerLon, zoom)
 
 	mapWidth := 768
 	mapHeight := 768
 
 	mapImg := image.NewRGBA(image.Rect(0, 0, mapWidth, mapHeight))
-	draw.Draw(mapImg, mapImg.Bounds(), &image.Uniform{color.RGBA{200, 220, 240, 255}}, image.Point{}, draw.Src)
+	// Fond bleu océan comme sur la photo
+	draw.Draw(mapImg, mapImg.Bounds(), &image.Uniform{color.RGBA{153, 204, 221, 255}}, image.Point{}, draw.Src)
 
 	tilesLoaded := 0
 
-	// télécharger 9 tuiles (3x3)
+	// Tuiles avec style bleu océan
 	for dy := -1; dy <= 1; dy++ {
 		for dx := -1; dx <= 1; dx++ {
 			tx := centerTileX + dx
 			ty := centerTileY + dy
 
-			url := fmt.Sprintf("https://tile.openstreetmap.org/%d/%d/%d.png", zoom, tx, ty)
+			// URL avec style voyager (fond bleu océan)
+			url := fmt.Sprintf("https://a.basemaps.cartocdn.com/rastertiles/voyager/%d/%d/%d.png", zoom, tx, ty)
 
-			tile := downloadImage(url)
+			tile := downloadLightMapImage(url)
 			if tile != nil {
 				destX := (dx + 1) * 256
 				destY := (dy + 1) * 256
@@ -196,9 +189,8 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		}
 	}
 
-	// si rien a chargé
 	if tilesLoaded == 0 {
-		placeholder := canvas.NewRectangle(color.RGBA{230, 230, 230, 255})
+		placeholder := canvas.NewRectangle(color.RGBA{153, 204, 221, 255})
 		placeholder.SetMinSize(fyne.NewSize(700, 700))
 
 		errorMsg := "🗺️ Carte pas dispo\n(vérifier internet)"
@@ -212,7 +204,7 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		return container.NewStack(placeholder, container.NewCenter(label))
 	}
 
-	// 🔥 AJOUT — dessiner tous les concerts
+	// Dessiner tous les marqueurs de concerts
 	for _, loc := range append(future, past...) {
 		clean := cleanAddress(loc)
 		coords, err := services.GeocodeAddress(clean)
@@ -224,7 +216,7 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		drawBigMarker(mapImg, px, py)
 	}
 
-	// 🔵 marqueur du lieu sélectionné (au centre)
+	// Marqueur du lieu sélectionné (centre)
 	if selectedCoords != nil {
 		markerX := mapWidth / 2
 		markerY := mapHeight / 2
@@ -254,19 +246,19 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 	)
 }
 
-// drawBigMarker dessine un gros point rouge
+// Marqueurs bien visibles sur fond bleu
 func drawBigMarker(img *image.RGBA, x, y int) {
-	markerColor := color.RGBA{255, 0, 0, 255}
-	outlineColor := color.RGBA{255, 255, 255, 255}
-	shadowColor := color.RGBA{0, 0, 0, 100}
-	centerColor := color.RGBA{255, 255, 255, 255}
+	markerColor := color.RGBA{220, 20, 60, 255}    // Rouge crimson
+	outlineColor := color.RGBA{255, 255, 255, 255} // Blanc
+	shadowColor := color.RGBA{0, 0, 0, 100}        // Ombre douce
+	centerColor := color.RGBA{255, 255, 255, 255}  // Blanc
 
 	shadowRadius := 18
 	outlineRadius := 16
 	markerRadius := 14
 	centerRadius := 6
 
-	// ombre
+	// Ombre douce
 	for dy := -shadowRadius; dy <= shadowRadius; dy++ {
 		for dx := -shadowRadius; dx <= shadowRadius; dx++ {
 			if dx*dx+dy*dy <= shadowRadius*shadowRadius {
@@ -278,7 +270,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// contour blanc
+	// Contour blanc
 	for dy := -outlineRadius; dy <= outlineRadius; dy++ {
 		for dx := -outlineRadius; dx <= outlineRadius; dx++ {
 			if dx*dx+dy*dy <= outlineRadius*outlineRadius {
@@ -290,7 +282,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// cercle rouge
+	// Cercle rouge
 	for dy := -markerRadius; dy <= markerRadius; dy++ {
 		for dx := -markerRadius; dx <= markerRadius; dx++ {
 			if dx*dx+dy*dy <= markerRadius*markerRadius {
@@ -302,7 +294,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// point blanc au milieu
+	// Point blanc au centre
 	for dy := -centerRadius; dy <= centerRadius; dy++ {
 		for dx := -centerRadius; dx <= centerRadius; dx++ {
 			if dx*dx+dy*dy <= centerRadius*centerRadius {
@@ -314,7 +306,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// croix noire
+	// Croix noire
 	crossSize := 10
 	crossThickness := 2
 	crossColor := color.RGBA{0, 0, 0, 255}
@@ -338,13 +330,12 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 	}
 }
 
-func downloadImage(url string) image.Image {
+func downloadLightMapImage(url string) image.Image {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil
 	}
 	req.Header.Set("User-Agent", "GroupieTracker/1.0")
-	req.Header.Set("Referer", "https://www.openstreetmap.org/")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -365,7 +356,6 @@ func downloadImage(url string) image.Image {
 	return img
 }
 
-// latLonToTile transforme GPS en numéro de tuile
 func latLonToTile(lat, lon float64, zoom int) (int, int) {
 	latRad := lat * math.Pi / 180.0
 	n := math.Pow(2.0, float64(zoom))
