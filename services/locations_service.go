@@ -13,20 +13,17 @@ type LocationResponse struct {
 	Index []models.Location `json:"index"`
 }
 
-// GetLocations récupère tous les lieux de concerts
 func GetLocations() ([]models.Location, error) {
-	url := "https://groupietrackers.herokuapp.com/api/locations" // ✅ HTTPS maintenant
+	url := "https://groupietrackers.herokuapp.com/api/locations"
 	return Fetch[[]models.Location](url)
 }
 
-// GetArtistLocations récupère uniquement les lieux d'un artiste
 func GetArtistLocations(artistID int) ([]string, error) {
 	rel, err := FetchRelationByID(artistID)
 	if err != nil {
 		return nil, fmt.Errorf("erreur récupération relation: %v", err)
 	}
 
-	// Map pour éviter les doublons de lieux
 	locationsMap := make(map[string]bool)
 	for location := range rel.DatesLocations {
 		location = strings.TrimSpace(location)
@@ -35,7 +32,6 @@ func GetArtistLocations(artistID int) ([]string, error) {
 		}
 	}
 
-	// Conversion en slice
 	var locations []string
 	for loc := range locationsMap {
 		locations = append(locations, loc)
@@ -44,7 +40,6 @@ func GetArtistLocations(artistID int) ([]string, error) {
 	return locations, nil
 }
 
-// GetLocationsByID récupère les locations pour un ID
 func GetLocationsByID(id int) (*models.Location, error) {
 	url := fmt.Sprintf("%s/locations/%d", APIBaseURL, id)
 

@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// FilterByCreationDate filtre les artistes par année de création
 func FilterByCreationDate(artists []models.Artist, min, max int) []models.Artist {
 	var filtered []models.Artist
 	for _, a := range artists {
@@ -16,7 +15,6 @@ func FilterByCreationDate(artists []models.Artist, min, max int) []models.Artist
 	return filtered
 }
 
-// FilterByMemberCount filtre par nombre de membres
 func FilterByMemberCount(artists []models.Artist, min, max int) []models.Artist {
 	var filtered []models.Artist
 	for _, a := range artists {
@@ -28,8 +26,6 @@ func FilterByMemberCount(artists []models.Artist, min, max int) []models.Artist 
 	return filtered
 }
 
-// FilterByFirstAlbumDate filtre par date du premier album
-// Les dates sont au format "DD-MM-YYYY" donc on peut comparer directement
 func FilterByFirstAlbumDate(artists []models.Artist, minDate, maxDate string) []models.Artist {
 	var filtered []models.Artist
 	for _, a := range artists {
@@ -40,16 +36,15 @@ func FilterByFirstAlbumDate(artists []models.Artist, minDate, maxDate string) []
 	return filtered
 }
 
-// FilterByLocations filtre les artistes qui ont joué dans certains lieux
+// FilterByLocations garde seulement les artistes qui ont joué dans certains endroits
 func FilterByLocations(artists []models.Artist, selectedLocations []string) []models.Artist {
 	if len(selectedLocations) == 0 {
-		return artists // Pas de filtre = tout
+		return artists
 	}
 
 	var filtered []models.Artist
 
 	for _, artist := range artists {
-		// Récupération de la relation pour avoir les lieux
 		relation, err := FetchRelationByID(artist.ID)
 		if err != nil {
 			continue
@@ -59,7 +54,6 @@ func FilterByLocations(artists []models.Artist, selectedLocations []string) []mo
 		for location := range relation.DatesLocations {
 			locationLower := strings.ToLower(location)
 
-			// Check si un des lieux sélectionnés match
 			for _, selected := range selectedLocations {
 				selectedLower := strings.ToLower(selected)
 				if strings.Contains(locationLower, selectedLower) {
@@ -81,8 +75,7 @@ func FilterByLocations(artists []models.Artist, selectedLocations []string) []mo
 	return filtered
 }
 
-// GetAllUniqueLocations récupère tous les lieux uniques de tous les artistes
-// Pratique pour remplir un menu déroulant de filtres
+// GetAllUniqueLocations récupère tous les lieux différents
 func GetAllUniqueLocations(artists []models.Artist) []string {
 	locationSet := make(map[string]bool)
 
@@ -98,7 +91,6 @@ func GetAllUniqueLocations(artists []models.Artist) []string {
 		}
 	}
 
-	// Conversion map → slice
 	var locations []string
 	for loc := range locationSet {
 		locations = append(locations, loc)
@@ -108,12 +100,9 @@ func GetAllUniqueLocations(artists []models.Artist) []string {
 }
 
 // formatLocationName nettoie les noms de lieux
-// Ex: "los_angeles-usa" → "Los Angeles, USA"
 func formatLocationName(location string) string {
-	// Remplacer underscores par espaces
 	location = strings.ReplaceAll(location, "_", " ")
 
-	// Séparer ville et pays (séparés par "-")
 	parts := strings.Split(location, "-")
 
 	if len(parts) == 2 {
@@ -122,6 +111,5 @@ func formatLocationName(location string) string {
 		return city + ", " + country
 	}
 
-	// Sinon juste capitaliser
 	return strings.Title(location)
 }

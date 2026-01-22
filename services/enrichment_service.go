@@ -5,31 +5,27 @@ import (
 	"sync"
 )
 
-// ArtistEnriched = Artist + ses lieux + ses dates
-// Ça évite de refaire des appels API à chaque fois
+// ArtistEnriched c'est un artiste avec ses lieux et dates déjà chargés
 type ArtistEnriched struct {
 	Artist       models.Artist
 	Locations    []string
 	ConcertDates []string
 }
 
-// EnrichArtists enrichit TOUS les artistes en parallèle (goroutines)
-// Ça accélère énormément le chargement initial
+// EnrichArtists charge tout en parallèle pour aller plus vite
 func EnrichArtists(artists []models.Artist) []ArtistEnriched {
 	enriched := make([]ArtistEnriched, len(artists))
-	var wg sync.WaitGroup
-	var mu sync.Mutex // Pour éviter les race conditions
+	var wg sync.WaitGroup // pour attendre que tout finisse
+	var mu sync.Mutex     // pour éviter les bugs quand plusieurs trucs écrivent en même temps
 
 	for i, artist := range artists {
 		wg.Add(1)
 		go func(idx int, a models.Artist) {
 			defer wg.Done()
 
-			// Récupération des infos supplémentaires
 			locations, _ := GetArtistLocations(a.ID)
 			dates, _ := GetArtistConcertDates(a.ID)
 
-			// Protection de l'écriture dans le slice partagé
 			mu.Lock()
 			enriched[idx] = ArtistEnriched{
 				Artist:       a,
@@ -40,11 +36,10 @@ func EnrichArtists(artists []models.Artist) []ArtistEnriched {
 		}(i, artist)
 	}
 
-	wg.Wait() // Attendre que toutes les goroutines finissent
+	wg.Wait()
 	return enriched
 }
 
-// EnrichArtist enrichit UN SEUL artiste (version synchrone)
 func EnrichArtist(artist models.Artist) ArtistEnriched {
 	locations, _ := GetArtistLocations(artist.ID)
 	dates, _ := GetArtistConcertDates(artist.ID)

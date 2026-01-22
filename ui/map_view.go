@@ -18,19 +18,17 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// RenderMap affiche une carte avec la liste des lieux géolocalisés
+// RenderMap affiche la carte avec les lieux des concerts
 func RenderMap(past []string, future []string, selected *string) *fyne.Container {
 
-	// Label dynamique du pays sélectionné
 	countryLabel := widget.NewLabel("🌍 Aucun pays sélectionné")
 	countryLabel.Alignment = fyne.TextAlignCenter
 	countryLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Conteneur de la carte
 	mapContainer := container.NewMax()
 	mapContainer.Add(tryLoadMap(selected, future, past))
 
-	// Liste des lieux
+	// la liste des lieux à gauche
 	list := widget.NewList(
 		func() int {
 			return len(future) + len(past)
@@ -55,7 +53,6 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 				isPast = true
 			}
 
-			// Nettoyer l'adresse pour le géocodage
 			cleanLoc := cleanAddress(location)
 			coords, err := services.GeocodeAddress(cleanLoc)
 			coordsText := "Chargement..."
@@ -80,7 +77,7 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 		},
 	)
 
-	// Clic sur un lieu → mise à jour carte + pays
+	// quand on clique sur un lieu
 	list.OnSelected = func(id widget.ListItemID) {
 		var location string
 
@@ -90,31 +87,22 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 			location = past[id-len(future)]
 		}
 
-		// Nettoyer l'adresse AVANT de l'utiliser
 		clean := cleanAddress(location)
 		*selected = clean
 
-		fmt.Printf("🔍 Lieu sélectionné: %s\n", clean)
-
-		// Récupérer infos du lieu
 		coords, err := services.GeocodeAddress(clean)
 		if err == nil {
-			fmt.Printf("✅ Coordonnées trouvées: %.4f, %.4f (%s, %s)\n",
-				coords.Lat, coords.Lon, coords.City, coords.Country)
-
 			if coords.Country != "" {
-				countryLabel.SetText("🌍 Pays sélectionné : " + coords.Country)
+				countryLabel.SetText("🌍 Pays : " + coords.Country)
 			} else {
 				countryLabel.SetText("🌍 Lieu : " + coords.City)
 			}
 		} else {
-			fmt.Printf("❌ Erreur géocodage: %v\n", err)
-			countryLabel.SetText("🌍 Erreur géocodage pour: " + clean)
+			countryLabel.SetText("🌍 Erreur pour: " + clean)
 		}
 
-		// Recharger la carte avec zoom et marqueur
+		// recharger la carte
 		newMap := tryLoadMap(selected, future, past)
-
 		mapContainer.RemoveAll()
 		mapContainer.Add(newMap)
 		mapContainer.Refresh()
@@ -141,57 +129,41 @@ func RenderMap(past []string, future []string, selected *string) *fyne.Container
 	)
 }
 
-// cleanAddress nettoie une adresse pour le géocodage
 func cleanAddress(address string) string {
-	// Remplacer les tirets et underscores par des espaces
 	clean := strings.ReplaceAll(address, "-", " ")
 	clean = strings.ReplaceAll(clean, "_", " ")
-
-	// Supprimer les espaces multiples
 	clean = strings.TrimSpace(clean)
 	clean = strings.Join(strings.Fields(clean), " ")
-
 	return clean
 }
 
-// tryLoadMap essaie de charger UNE SEULE carte avec marqueur CENTRÉ
+// tryLoadMap charge la carte avec un marqueur
 func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
-	centerLat, centerLon, zoom := 20.0, 0.0, 2 // Vue du monde par défaut
+	centerLat, centerLon, zoom := 20.0, 0.0, 2
 
 	var selectedCoords *services.Coordinates
 
-	// Si un lieu est sélectionné, le CENTRER sur la carte
+	// si un lieu est sélectionné, on centre dessus
 	if selected != nil && *selected != "" {
 		coords, err := services.GeocodeAddress(*selected)
 		if err == nil {
-			// IMPORTANT: Le lieu sélectionné devient le centre de la carte
 			centerLat, centerLon, zoom = coords.Lat, coords.Lon, 8
 			selectedCoords = &coords
-
-			fmt.Printf("🗺️ Centre carte: %.4f, %.4f (zoom: %d)\n", centerLat, centerLon, zoom)
-		} else {
-			fmt.Printf("❌ Impossible de centrer la carte: %v\n", err)
 		}
 	}
 
-	// Calculer les coordonnées de la tuile centrale
+	// calculer quelle tuile au centre
 	centerTileX, centerTileY := latLonToTile(centerLat, centerLon, zoom)
 
-	fmt.Printf("📍 Tuile centrale: X=%d, Y=%d\n", centerTileX, centerTileY)
+	mapWidth := 768
+	mapHeight := 768
 
-	// Créer une grande carte 3x3 tuiles
-	mapWidth := 768  // 256 * 3
-	mapHeight := 768 // 256 * 3
-
-	// Créer une image composite
 	mapImg := image.NewRGBA(image.Rect(0, 0, mapWidth, mapHeight))
-
-	// Remplir avec une couleur de fond
 	draw.Draw(mapImg, mapImg.Bounds(), &image.Uniform{color.RGBA{200, 220, 240, 255}}, image.Point{}, draw.Src)
 
 	tilesLoaded := 0
 
-	// Télécharger et composer les 9 tuiles
+	// télécharger 9 tuiles (3x3)
 	for dy := -1; dy <= 1; dy++ {
 		for dx := -1; dx <= 1; dx++ {
 			tx := centerTileX + dx
@@ -201,7 +173,6 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 
 			tile := downloadImage(url)
 			if tile != nil {
-				// Calculer la position de la tuile dans l'image composite
 				destX := (dx + 1) * 256
 				destY := (dy + 1) * 256
 				destRect := image.Rect(destX, destY, destX+256, destY+256)
@@ -212,16 +183,14 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		}
 	}
 
-	fmt.Printf("✅ Tuiles chargées: %d/9\n", tilesLoaded)
-
-	// Si aucune tuile n'a chargé, afficher un message d'erreur
+	// si rien a chargé
 	if tilesLoaded == 0 {
 		placeholder := canvas.NewRectangle(color.RGBA{230, 230, 230, 255})
 		placeholder.SetMinSize(fyne.NewSize(700, 700))
 
-		errorMsg := "🗺️ Carte non disponible\n(vérifier connexion internet)"
+		errorMsg := "🗺️ Carte pas dispo\n(vérifier internet)"
 		if selected != nil && *selected != "" {
-			errorMsg = fmt.Sprintf("🗺️ Impossible de charger la carte pour:\n%s", *selected)
+			errorMsg = fmt.Sprintf("🗺️ Marche pas pour:\n%s", *selected)
 		}
 
 		label := widget.NewLabel(errorMsg)
@@ -230,24 +199,17 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 		return container.NewStack(placeholder, container.NewCenter(label))
 	}
 
-	// CORRECTION: Le marqueur doit être au CENTRE de l'image car le lieu est le centre de la carte
+	// dessiner le marqueur au centre
 	if selectedCoords != nil {
-		// Position du marqueur = centre de l'image (384, 384)
 		markerX := mapWidth / 2
 		markerY := mapHeight / 2
-
-		fmt.Printf("🎯 Position marqueur: X=%d, Y=%d (centre de la carte)\n", markerX, markerY)
-
-		// Dessiner un GROS marqueur rouge très visible
 		drawBigMarker(mapImg, markerX, markerY)
 	}
 
-	// Créer le canvas image
 	canvasImg := canvas.NewImageFromImage(mapImg)
 	canvasImg.FillMode = canvas.ImageFillContain
 	canvasImg.SetMinSize(fyne.NewSize(700, 700))
 
-	// Informations sur la localisation
 	var infoText string
 	if selectedCoords != nil {
 		infoText = fmt.Sprintf("📍 %s, %s\n📊 Lat: %.4f, Lon: %.4f | 🔍 Zoom: %d",
@@ -267,25 +229,23 @@ func tryLoadMap(selected *string, future, past []string) fyne.CanvasObject {
 	)
 }
 
-// drawBigMarker dessine un GROS marqueur rouge très visible
+// drawBigMarker dessine un gros point rouge
 func drawBigMarker(img *image.RGBA, x, y int) {
-	// Couleurs
-	markerColor := color.RGBA{255, 0, 0, 255}      // Rouge vif
-	outlineColor := color.RGBA{255, 255, 255, 255} // Blanc
-	shadowColor := color.RGBA{0, 0, 0, 100}        // Ombre
-	centerColor := color.RGBA{255, 255, 255, 255}  // Centre blanc
+	markerColor := color.RGBA{255, 0, 0, 255}
+	outlineColor := color.RGBA{255, 255, 255, 255}
+	shadowColor := color.RGBA{0, 0, 0, 100}
+	centerColor := color.RGBA{255, 255, 255, 255}
 
-	// Tailles
 	shadowRadius := 18
 	outlineRadius := 16
 	markerRadius := 14
 	centerRadius := 6
 
-	// 1. Dessiner l'ombre (noir transparent)
+	// ombre
 	for dy := -shadowRadius; dy <= shadowRadius; dy++ {
 		for dx := -shadowRadius; dx <= shadowRadius; dx++ {
 			if dx*dx+dy*dy <= shadowRadius*shadowRadius {
-				px, py := x+dx+2, y+dy+2 // Décalage pour l'ombre
+				px, py := x+dx+2, y+dy+2
 				if px >= 0 && px < img.Bounds().Dx() && py >= 0 && py < img.Bounds().Dy() {
 					img.Set(px, py, shadowColor)
 				}
@@ -293,7 +253,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// 2. Dessiner le contour blanc
+	// contour blanc
 	for dy := -outlineRadius; dy <= outlineRadius; dy++ {
 		for dx := -outlineRadius; dx <= outlineRadius; dx++ {
 			if dx*dx+dy*dy <= outlineRadius*outlineRadius {
@@ -305,7 +265,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// 3. Dessiner le cercle rouge
+	// cercle rouge
 	for dy := -markerRadius; dy <= markerRadius; dy++ {
 		for dx := -markerRadius; dx <= markerRadius; dx++ {
 			if dx*dx+dy*dy <= markerRadius*markerRadius {
@@ -317,7 +277,7 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// 4. Dessiner le point central blanc
+	// point blanc au milieu
 	for dy := -centerRadius; dy <= centerRadius; dy++ {
 		for dx := -centerRadius; dx <= centerRadius; dx++ {
 			if dx*dx+dy*dy <= centerRadius*centerRadius {
@@ -329,12 +289,11 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// 5. Dessiner une croix noire au centre pour plus de précision
+	// croix noire
 	crossSize := 10
 	crossThickness := 2
 	crossColor := color.RGBA{0, 0, 0, 255}
 
-	// Ligne horizontale
 	for dx := -crossSize; dx <= crossSize; dx++ {
 		for t := -crossThickness; t <= crossThickness; t++ {
 			px, py := x+dx, y+t
@@ -344,7 +303,6 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 		}
 	}
 
-	// Ligne verticale
 	for dy := -crossSize; dy <= crossSize; dy++ {
 		for t := -crossThickness; t <= crossThickness; t++ {
 			px, py := x+t, y+dy
@@ -355,11 +313,9 @@ func drawBigMarker(img *image.RGBA, x, y int) {
 	}
 }
 
-// downloadImage télécharge une image depuis une URL avec gestion d'erreurs améliorée
 func downloadImage(url string) image.Image {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("❌ Erreur création requête: %v\n", err)
 		return nil
 	}
 	req.Header.Set("User-Agent", "GroupieTracker/1.0")
@@ -368,26 +324,23 @@ func downloadImage(url string) image.Image {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("❌ Erreur téléchargement: %v\n", err)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Printf("❌ Code HTTP: %d pour %s\n", resp.StatusCode, url)
 		return nil
 	}
 
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
-		fmt.Printf("❌ Erreur décodage: %v\n", err)
 		return nil
 	}
 
 	return img
 }
 
-// latLonToTile convertit lat/lon en numéro de tuile OSM
+// latLonToTile transforme GPS en numéro de tuile
 func latLonToTile(lat, lon float64, zoom int) (int, int) {
 	latRad := lat * math.Pi / 180.0
 	n := math.Pow(2.0, float64(zoom))
@@ -395,7 +348,6 @@ func latLonToTile(lat, lon float64, zoom int) (int, int) {
 	x := int((lon + 180.0) / 360.0 * n)
 	y := int((1.0 - math.Log(math.Tan(latRad)+1/math.Cos(latRad))/math.Pi) / 2.0 * n)
 
-	// Assurer que les coordonnées sont dans les limites valides
 	maxTile := int(n) - 1
 	if x < 0 {
 		x = 0

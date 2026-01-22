@@ -7,15 +7,13 @@ import (
 	"strings"
 )
 
-// SearchSuggestion représente une suggestion de recherche avec son type
 type SearchSuggestion struct {
-	Text   string        // Ce qu'on affiche ("Queen", "Freddie Mercury → Queen")
-	Type   string        // Type de résultat ("Artiste", "Membre", "Lieu", etc.)
-	Artist models.Artist // L'artiste complet associé
+	Text   string
+	Type   string
+	Artist models.Artist
 }
 
-// SearchArtistsWithLocations = recherche avancée avec lieux et dates
-// C'est la fonction qu'on utilise dans la barre de recherche
+// SearchArtistsWithLocations cherche dans tout (nom, membres, lieux, dates...)
 func SearchArtistsWithLocations(artistsEnriched []ArtistEnriched, query string) []SearchSuggestion {
 	if query == "" {
 		return nil
@@ -23,19 +21,19 @@ func SearchArtistsWithLocations(artistsEnriched []ArtistEnriched, query string) 
 
 	q := strings.ToLower(query)
 	var results []SearchSuggestion
-	seen := make(map[int]bool) // Pour éviter les doublons
+	seen := make(map[int]bool) // pas de doublons
 
 	for _, enriched := range artistsEnriched {
 		a := enriched.Artist
 
-		// 1. Recherche par nom d'artiste
+		// chercher par nom
 		if !seen[a.ID] && strings.Contains(strings.ToLower(a.Name), q) {
 			results = append(results, SearchSuggestion{a.Name, "Artiste", a})
 			seen[a.ID] = true
 			continue
 		}
 
-		// 2. Recherche par membre
+		// chercher par membre
 		if !seen[a.ID] {
 			for _, m := range a.Members {
 				if strings.Contains(strings.ToLower(m), q) {
@@ -46,21 +44,21 @@ func SearchArtistsWithLocations(artistsEnriched []ArtistEnriched, query string) 
 			}
 		}
 
-		// 3. Recherche par année de création
+		// chercher par année
 		if !seen[a.ID] && strings.Contains(strconv.Itoa(a.CreationDate), q) {
 			results = append(results, SearchSuggestion{fmt.Sprintf("%s (%d)", a.Name, a.CreationDate), "Année", a})
 			seen[a.ID] = true
 			continue
 		}
 
-		// 4. Recherche par date d'album
+		// chercher par album
 		if !seen[a.ID] && strings.Contains(strings.ToLower(a.FirstAlbum), q) {
 			results = append(results, SearchSuggestion{fmt.Sprintf("%s (%s)", a.Name, a.FirstAlbum), "Album", a})
 			seen[a.ID] = true
 			continue
 		}
 
-		// 5. Recherche par lieu (nouveauté !)
+		// chercher par lieu
 		if !seen[a.ID] {
 			for _, location := range enriched.Locations {
 				if strings.Contains(strings.ToLower(location), q) {
@@ -71,7 +69,7 @@ func SearchArtistsWithLocations(artistsEnriched []ArtistEnriched, query string) 
 			}
 		}
 
-		// 6. Recherche par date de concert
+		// chercher par date de concert
 		if !seen[a.ID] {
 			for _, date := range enriched.ConcertDates {
 				if strings.Contains(date, q) {
@@ -86,7 +84,6 @@ func SearchArtistsWithLocations(artistsEnriched []ArtistEnriched, query string) 
 	return results
 }
 
-// SearchArtists = version simple sans lieux/dates (gardée pour compatibilité)
 func SearchArtists(artists []models.Artist, query string) []SearchSuggestion {
 	if query == "" {
 		return nil

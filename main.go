@@ -7,13 +7,13 @@ import (
 )
 
 func main() {
-	// On récupère tous les artistes depuis l'API
+	// récupérer les artistes depuis l'API
 	artists, err := services.FetchArtists()
 	if err != nil {
 		log.Fatal("Erreur chargement:", err)
 	}
 
-	// On démarre l'application avec la liste complète
+	// lancer l'appli
 	app := ui.NewApp(artists)
 	app.Run()
 }

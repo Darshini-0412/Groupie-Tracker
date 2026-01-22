@@ -12,21 +12,19 @@ type DatesResponse struct {
 	Index []models.Date `json:"index"`
 }
 
-// GetDates récupère toutes les dates de concerts
 func GetDates() ([]models.Date, error) {
-	url := "https://groupietrackers.herokuapp.com/api/dates" // ✅ HTTPS maintenant
+	url := "https://groupietrackers.herokuapp.com/api/dates"
 	return Fetch[[]models.Date](url)
 }
 
 // GetArtistConcertDates récupère toutes les dates d'un artiste
-// En gros, on prend toutes les dates dans la map DatesLocations
 func GetArtistConcertDates(artistID int) ([]string, error) {
 	rel, err := FetchRelationByID(artistID)
 	if err != nil {
 		return nil, fmt.Errorf("erreur récupération relation: %v", err)
 	}
 
-	// On utilise une map pour éviter les doublons
+	// éviter les doublons avec une map
 	datesMap := make(map[string]bool)
 	for _, dates := range rel.DatesLocations {
 		for _, date := range dates {
@@ -36,7 +34,7 @@ func GetArtistConcertDates(artistID int) ([]string, error) {
 		}
 	}
 
-	// Conversion map → slice
+	// transformer la map en liste
 	var allDates []string
 	for date := range datesMap {
 		allDates = append(allDates, date)
@@ -45,7 +43,6 @@ func GetArtistConcertDates(artistID int) ([]string, error) {
 	return allDates, nil
 }
 
-// GetDatesByID récupère les dates pour un ID spécifique
 func GetDatesByID(id int) (*models.Date, error) {
 	url := fmt.Sprintf("%s/dates/%d", APIBaseURL, id)
 
