@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -19,7 +20,7 @@ var (
 	textGray = color.RGBA{R: 220, G: 220, B: 220, A: 255}
 )
 
-// RenderArtistList affiche la page principale avec tous les artistes
+// Affiche la page principale avec tous les artistes
 func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 	title := canvas.NewText("GROUPIE TRACKER", nil)
 	title.TextSize = 32
@@ -28,9 +29,15 @@ func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 
 	searchBar := CreateSmartSearchBar(w)
 
+	// Bouton d'aide pour afficher les raccourcis
+	helpBtn := widget.NewButton("❓ Raccourcis", func() {
+		showShortcutsHelp(w)
+	})
+	helpBtn.Importance = widget.LowImportance
+
 	header := container.NewVBox(
 		container.NewCenter(title),
-		container.NewPadded(searchBar),
+		container.NewBorder(nil, nil, nil, helpBtn, container.NewPadded(searchBar)),
 		widget.NewSeparator(),
 	)
 
@@ -42,7 +49,6 @@ func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 
 	var scrollContent *fyne.Container
 
-	// si c'est tous les artistes, on fait des sections
 	if len(artists) == len(w.AllArtists) {
 		sections := []fyne.CanvasObject{}
 
@@ -77,6 +83,20 @@ func RenderArtistList(artists []models.Artist, w *AppWindow) *fyne.Container {
 	separator.SetMinSize(fyne.NewSize(2, 0))
 
 	return container.NewBorder(header, nil, container.NewHBox(filtersPanel, separator), nil, content)
+}
+
+// Affiche une fenêtre popup avec les raccourcis clavier
+func showShortcutsHelp(w *AppWindow) {
+	helpText := `⌨️ RACCOURCIS CLAVIER DISPONIBLES
+
+ Ctrl+H : Retour à l'accueil
+  Echap : Retour en arrière
+ Ctrl+R : Réinitialiser les filtres
+ Ctrl+Q : Quitter l'application
+
+💡 Astuce : Utilisez ces raccourcis pour naviguer plus rapidement !`
+
+	dialog.ShowInformation("Raccourcis clavier", helpText, w.Window)
 }
 
 func getArtistsRange(artists []models.Artist, start, end int) []models.Artist {

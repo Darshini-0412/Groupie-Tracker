@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 type AppWindow struct {
@@ -52,6 +53,37 @@ func (w *AppWindow) ShowArtistDetail(artistName string) {
 }
 
 func (w *AppWindow) Run() {
+	w.SetupShortcuts()
 	w.ShowArtistList()
 	w.Window.ShowAndRun()
+}
+
+// Configuration des raccourcis clavier pour l'application
+func (w *AppWindow) SetupShortcuts() {
+	w.Window.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyH,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		w.ShowArtistList()
+	})
+
+	w.Window.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName: fyne.KeyEscape,
+	}, func(shortcut fyne.Shortcut) {
+		w.ShowArtistList()
+	})
+
+	w.Window.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyR,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		w.ShowArtistList()
+	})
+
+	w.Window.Canvas().AddShortcut(&desktop.CustomShortcut{
+		KeyName:  fyne.KeyQ,
+		Modifier: fyne.KeyModifierControl,
+	}, func(shortcut fyne.Shortcut) {
+		w.App.Quit()
+	})
 }
