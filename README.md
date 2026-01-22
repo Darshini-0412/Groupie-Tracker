@@ -1,6 +1,9 @@
 🎵 Groupie Tracker
 Groupie Tracker est une application de bureau développée en Go qui permet de visualiser et d'explorer des informations sur vos artistes musicaux préférés. L'application récupère les données depuis une API et les présente dans une interface graphique intuitive .
- Installation
+
+ 
+ 
+Installation
 Prérequis
 Go 1.21+
 Connexion Internet
@@ -9,6 +12,9 @@ bash
 git clone https://github.com/Darshini-0412/Groupie-Tracker.git
 cd Groupie-Tracker
 go run .
+
+ 
+ 
  Fonctionnalités
 Liste des artistes : Affichage avec photos et informations détaillées
  Recherche intelligente : Par artiste, membre, année, album ou lieu
@@ -20,5 +26,6 @@ Liste des artistes : Affichage avec photos et informations détaillées
  Équipe
 Marly, Ananya, Kenley, Darshini
 
+ 
  Technologies
 Go • Fyne • OpenStreetMap • Spotify
